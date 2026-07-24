@@ -1,0 +1,24 @@
+# Production: provide secrets through the deployment environment; put TLS/reverse proxy
+# in front of frontend-web, run backups, migrations and monitoring operationally.
+services:
+  db:
+    ports: []
+    restart: unless-stopped
+  backend:
+    build:
+      context: ./backend
+      target: production
+    volumes: []
+    environment:
+      ENVIRONMENT: production
+    restart: unless-stopped
+  frontend-web:
+    build:
+      context: ./frontend-web
+      target: production
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+    volumes: []
+    ports:
+      - "${WEB_PORT}:80"
+    restart: unless-stopped

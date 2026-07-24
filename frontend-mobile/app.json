@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Sport",
+    "slug": "sport",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "sport",
+    "userInterfaceStyle": "automatic",
+    "plugins": ["expo-router"],
+    "experiments": { "typedRoutes": true }
+  }
+}
