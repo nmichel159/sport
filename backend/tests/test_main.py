@@ -34,11 +34,7 @@ def test_health():
     assert response.json() == {"status": "ok"}
 
 
-def test_create_and_list_users():
+def test_private_endpoint_requires_auth():
     client = TestClient(app)
-    create = client.post("/api/v1/users", json={"email": "user@example.com"})
-    assert create.status_code == 201
-    assert create.json()["email"] == "user@example.com"
     listed = client.get("/api/v1/users")
-    assert listed.status_code == 200
-    assert any(user["email"] == "user@example.com" for user in listed.json())
+    assert listed.status_code == 401

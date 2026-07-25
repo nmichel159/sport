@@ -4,9 +4,23 @@
     "slug": "sport",
     "version": "0.1.0",
     "orientation": "portrait",
-    "scheme": "sport",
+    "scheme": "com.nmichel.sport",
     "userInterfaceStyle": "automatic",
-    "plugins": ["expo-router"],
-    "experiments": { "typedRoutes": true }
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "fa2b5012-5e33-49e4-a521-f1f10a1f2502"
+      }
+    },
+    "android": {
+      "package": "com.nmichel.sport"
+    }
   }
 }

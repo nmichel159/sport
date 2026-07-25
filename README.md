@@ -39,6 +39,10 @@ docker compose exec backend alembic revision --autogenerate -m "describe_change"
 
 The root `Makefile` supplies `make up`, `make down`, `make reset`, `make logs`, `make test`, and migration shortcuts.
 
+## Sign-in
+
+Google sign-in, rotating sessions, and Slovak/English UI are documented in [AUTHENTICATION.md](AUTHENTICATION.md). Configure the public Google client IDs in `.env` before testing the login screens.
+
 ## Mobile
 
 Expo runs outside Compose for reliable device/simulator access:
