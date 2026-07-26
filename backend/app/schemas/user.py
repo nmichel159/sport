@@ -16,6 +16,7 @@ class UserRead(BaseModel):
     account_status: str
     email_verified: bool
     display_name: str | None = None
+    nickname: str | None = None
     first_name: str | None = None
     last_name: str | None = None
     birth_date: date | None = None
@@ -30,6 +31,7 @@ class UserRead(BaseModel):
 class UserSettingsUpdate(BaseModel):
     preferred_language: str | None = None
     display_name: str | None = None
+    nickname: str | None = None
 
 
 class OnboardingComplete(BaseModel):
