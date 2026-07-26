@@ -20,10 +20,7 @@
       }
     },
     "android": {
-      "package": "com.nmichel.sport",
-      "navigationBar": {
-        "visible": "sticky-immersive"
-      }
+      "package": "com.nmichel.sport"
     }
   }
 }
