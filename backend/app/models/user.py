@@ -20,6 +20,8 @@ class User(Base):
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     nickname: Mapped[str | None] = mapped_column(String(30), nullable=True, unique=True, index=True)
+    school_code: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
+    district_city: Mapped[str | None] = mapped_column(String(100), nullable=True)
     first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     birth_date: Mapped[date | None] = mapped_column(nullable=True)

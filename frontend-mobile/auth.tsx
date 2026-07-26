@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { getStoredValue, removeStoredValue, setStoredValue } from './services/storage'
 import { apiBaseUrl } from './config/env'
-export type User = { id: string; display_name?: string; nickname?: string; preferred_language: 'sk' | 'en'; onboarding_completed: boolean }
-type OnboardingData = { first_name: string; last_name: string; birth_date: string; gender: 'male' | 'female' | 'other' | 'prefer_not_to_say' }
+export type User = { id: string; display_name?: string; nickname?: string; school_code?: string; district_city?: string; preferred_language: 'sk' | 'en'; onboarding_completed: boolean }
+type OnboardingData = { nickname: string; first_name: string; last_name: string; birth_date: string; gender: 'male' | 'female' | 'other' | 'prefer_not_to_say'; school_code: string; district_city: string }
 type Auth = { user: User | null; loading: boolean; signIn: (credential: string) => Promise<void>; developmentSignIn: () => Promise<void>; signOut: () => Promise<void>; completeOnboarding: (data: OnboardingData) => Promise<void>; authenticatedFetch: (path: string, init?: RequestInit) => Promise<Response>; updateNickname: (nickname: string) => Promise<void> }
 const C = createContext<Auth>({ user: null, loading: true, signIn: async () => {}, developmentSignIn: async () => {}, signOut: async () => {}, completeOnboarding: async () => {}, authenticatedFetch: async () => { throw Error('AUTH_REQUIRED') }, updateNickname: async () => {} })
 const refreshKey = 'sport-refresh-token'
