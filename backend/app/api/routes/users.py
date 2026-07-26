@@ -33,11 +33,16 @@ def update_my_settings(payload: UserSettingsUpdate, db: Session = Depends(get_db
 
 @router.post("/me/onboarding", response_model=UserRead)
 def complete_onboarding(payload: OnboardingComplete, db: Session = Depends(get_db), user=Depends(get_current_active_user)):
-    name = payload.display_name.strip()
-    if not name or len(name) > 255 or payload.preferred_language not in {"sk", "en"}:
+    first_name = payload.first_name.strip()
+    last_name = payload.last_name.strip()
+    if not first_name or not last_name or len(first_name) > 100 or len(last_name) > 100 or payload.gender not in {"male", "female", "other", "prefer_not_to_say"} or payload.preferred_language not in {"sk", "en"}:
         from fastapi import HTTPException
         raise HTTPException(status_code=422, detail={"code": "INVALID_ONBOARDING"})
-    user.display_name = name
+    user.first_name = first_name
+    user.last_name = last_name
+    user.birth_date = payload.birth_date
+    user.gender = payload.gender
+    user.display_name = f"{first_name} {last_name}"
     user.preferred_language = payload.preferred_language
     user.onboarding_completed = True
     db.commit(); db.refresh(user)

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr
@@ -16,6 +16,10 @@ class UserRead(BaseModel):
     account_status: str
     email_verified: bool
     display_name: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    birth_date: date | None = None
+    gender: str | None = None
     profile_image_url: str | None = None
     preferred_language: str = "sk"
     onboarding_completed: bool = False
@@ -29,5 +33,8 @@ class UserSettingsUpdate(BaseModel):
 
 
 class OnboardingComplete(BaseModel):
-    display_name: str
+    first_name: str
+    last_name: str
+    birth_date: date
+    gender: str
     preferred_language: str = "sk"

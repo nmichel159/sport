@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 import uuid
 
@@ -19,6 +19,10 @@ class User(Base):
     account_status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    birth_date: Mapped[date | None] = mapped_column(nullable=True)
+    gender: Mapped[str | None] = mapped_column(String(30), nullable=True)
     profile_image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     preferred_language: Mapped[str] = mapped_column(String(5), default="sk")
     onboarding_completed: Mapped[bool] = mapped_column(Boolean, default=False)
