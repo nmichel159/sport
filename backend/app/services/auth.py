@@ -1,4 +1,5 @@
 from datetime import timedelta
+import logging
 import uuid
 
 from google.auth.transport import requests as google_requests
@@ -14,17 +15,23 @@ from app.models.user import AuthIdentity, AuthSession, User
 class InvalidGoogleToken(Exception): pass
 
 
+logger = logging.getLogger(__name__)
+
+
 def verify_google_token(token: str) -> dict:
     settings = get_settings()
     audiences = [x for x in (settings.google_web_client_id, settings.google_android_client_id, settings.google_ios_client_id) if x]
     if not audiences:
         raise InvalidGoogleToken()
     try:
-        payload = id_token.verify_oauth2_token(token, google_requests.Request(), audience=None)
+        # Browser and container clocks can differ by a second around token issue
+        # time. Keep this narrow so expired tokens remain rejected.
+        payload = id_token.verify_oauth2_token(token, google_requests.Request(), audience=None, clock_skew_in_seconds=10)
         if payload.get("aud") not in audiences or payload.get("iss") not in ("accounts.google.com", "https://accounts.google.com") or not payload.get("sub"):
             raise InvalidGoogleToken()
         return payload
     except Exception as exc:
+        logger.warning("Google ID token verification failed: %s", exc)
         raise InvalidGoogleToken() from exc
 
 

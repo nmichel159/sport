@@ -3,6 +3,7 @@ import { getStoredValue, setStoredValue } from './storage'
 
 export type School = { code: string; edu_id: string; name: string; street: string; municipality: string }
 export type DistrictCity = { id: string; district: string; name: string }
+export type Sport = { code: string; name: string }
 type Catalog<T> = { version: string; items: T[] }
 
 // The full catalogue lives on the phone. It is downloaded again only after
@@ -29,6 +30,7 @@ async function loadCatalog<T>(name: string): Promise<T[]> {
 
 export const loadSchools = () => loadCatalog<School>('schools')
 export const loadDistrictCities = () => loadCatalog<DistrictCity>('district-cities')
+export const loadSports = () => loadCatalog<Sport>('sports')
 
 async function searchCatalog<T>(name: string, query: string): Promise<T[]> {
   if (!query.trim()) return []

@@ -1,0 +1,7 @@
+[
+  {"code":"FOOTBALL","name":"Futbal"},
+  {"code":"BASKETBALL","name":"Basketbal"},
+  {"code":"VOLLEYBALL","name":"Volejbal"},
+  {"code":"CHESS","name":"Šach"},
+  {"code":"TABLE_TENNIS","name":"Stolný tenis"}
+]

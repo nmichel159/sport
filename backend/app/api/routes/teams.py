@@ -79,3 +79,16 @@ def add_team_member(team_id: uuid.UUID, payload: TeamMemberAdd, db: Session = De
         db.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, detail={"code": "PLAYER_ALREADY_IN_TEAM"})
     return team_read(team, db)
+
+
+@router.delete("/{team_id}/members/{member_id}", response_model=TeamRead)
+def remove_team_member(team_id: uuid.UUID, member_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
+    team = get_accessible_team(team_id, user, db)
+    if team.owner_user_id != user.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"code": "TEAM_OWNER_REQUIRED"})
+    member = db.get(TeamMember, {"team_id": team.id, "user_id": member_id})
+    if not member:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail={"code": "MEMBER_NOT_FOUND"})
+    db.delete(member)
+    db.commit()
+    return team_read(team, db)
