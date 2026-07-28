@@ -12,10 +12,10 @@ import sys
 # Add the backend root so the application package is importable in Docker.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.core.database import SessionLocal
-from app.models.user import Organization, OrganizationEvent, OrganizationEventRegistration, OrganizationMember, User
+from app.models.user import Organization, OrganizationEvent, OrganizationEventRegistration, OrganizationMember, Team, TeamMember, User
 from app.services.catalogs import get_catalog
 
 
@@ -48,6 +48,7 @@ def main() -> None:
         users = {user.email: user for user in db.scalars(select(User).where(User.email.in_([player[0] for player in PLAYERS]))).all()}
         sara = users["sara.kralova@example.test"]
         norbert = users["norbert.michel@sport.local"]
+        adam = users["adam.kovac@example.test"]
 
         organization = db.scalar(select(Organization).where(Organization.slug == "sara-ball-3x3"))
         if not organization:
@@ -74,6 +75,24 @@ def main() -> None:
         registered_event = events["Letný 3x3 turnaj"]
         if not db.scalar(select(OrganizationEventRegistration).where(OrganizationEventRegistration.event_id == registered_event.id, OrganizationEventRegistration.user_id == norbert.id)):
             db.add(OrganizationEventRegistration(event_id=registered_event.id, user_id=norbert.id))
+
+        for code, name in (("basketball", "Basketbal"), ("football", "Futbal"), ("floorball", "Florbal")):
+            db.execute(text("INSERT INTO sports (code, name) VALUES (:code, :name) ON CONFLICT (code) DO NOTHING"), {"code": code, "name": name})
+        db.flush()
+        sport_ids = {row.code: row.id for row in db.execute(text("SELECT id, code FROM sports WHERE code IN ('basketball','football','floorball')")).all()}
+        teams = [("Bratislava Ballers", "bratislava-ballers", norbert, (norbert, sara, adam)), ("Košice Hoops", "kosice-hoops", nina := users["nina.horvathova@example.test"], (nina, matej := users["matej.novak@example.test"], lea := users["lea.malikova@example.test"])), ("Jump Crew", "jump-crew", users["jakub.varga@example.test"], (users["jakub.varga@example.test"], adam))]
+        for team_name, team_code, owner, members in teams:
+            team = db.scalar(select(Team).where(Team.team_code == team_code))
+            if not team:
+                team = Team(name=team_name, team_code=team_code, owner_user_id=owner.id); db.add(team); db.flush()
+            for member in members:
+                if not db.get(TeamMember, {"team_id": team.id, "user_id": member.id}): db.add(TeamMember(team_id=team.id, user_id=member.id))
+            for code, xp in (("basketball", 900 + len(team_name) * 11), ("football", 300 + len(team_name) * 7), ("floorball", 200 + len(team_name) * 5)):
+                db.execute(text("INSERT INTO team_sport_xp (team_id, sport_id, xp) VALUES (:team_id, :sport_id, :xp) ON CONFLICT (team_id, sport_id) DO UPDATE SET xp=EXCLUDED.xp"), {"team_id": team.id, "sport_id": sport_ids[code], "xp": xp})
+        player_xp = {"norbert.michel@sport.local": (1240, 180, 90), "adam.kovac@example.test": (1160, 420, 160), "nina.horvathova@example.test": (1410, 110, 80), "matej.novak@example.test": (980, 760, 220), "sara.kralova@example.test": (1320, 260, 120), "jakub.varga@example.test": (740, 990, 310), "lea.malikova@example.test": (1090, 350, 680)}
+        for email, values in player_xp.items():
+            for code, xp in zip(("basketball", "football", "floorball"), values):
+                db.execute(text("INSERT INTO player_sport_xp (user_id, sport_id, xp) VALUES (:user_id, :sport_id, :xp) ON CONFLICT (user_id, sport_id) DO UPDATE SET xp=EXCLUDED.xp"), {"user_id": users[email].id, "sport_id": sport_ids[code], "xp": xp})
         db.commit()
         print(f"Created {added} demo players, Sára's organization, two events, and Norbert's registration.")
     finally:

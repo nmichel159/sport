@@ -1,0 +1,118 @@
+import { useEffect, useState } from 'react'
+import { Pressable, Text, TextInput, View } from 'react-native'
+import { formStyles } from '../../../styles/formStyles'
+import { teamStyles } from '../../../styles/teamStyles'
+import type {
+  ApiOrganization,
+  AuthenticatedFetch,
+  EventPayload,
+} from '../../../types/domain'
+import { requestOrganization } from '../services/organizationApi'
+import { OrganizationEventManagerScreen } from './OrganizationEventManagerScreen'
+
+type Props = {
+  organizations: ApiOrganization[]
+  setOrganizations: React.Dispatch<React.SetStateAction<ApiOrganization[]>>
+  fetcher: AuthenticatedFetch
+}
+
+export function OrganizationManagerScreen({
+  organizations,
+  setOrganizations,
+  fetcher,
+}: Props) {
+  const [name, setName] = useState('')
+  const [active, setActive] = useState<ApiOrganization | null>(
+    () => organizations[0] ?? null,
+  )
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    if (!active && organizations.length) setActive(organizations[0])
+  }, [active, organizations])
+
+  const create = async () => {
+    try {
+      const item = await requestOrganization(
+        fetcher,
+        '/organizations',
+        'POST',
+        { name },
+      )
+      setOrganizations((current) => [item, ...current])
+      setActive(item)
+      setName('')
+    } catch {
+      setMessage('Organizáciu sa nepodarilo vytvoriť.')
+    }
+  }
+
+  const update = async (
+    path: string,
+    method: string,
+    body?: EventPayload,
+  ) => {
+    try {
+      const item = await requestOrganization(fetcher, path, method, body)
+      setOrganizations((current) =>
+        current.map((organization) =>
+          organization.id === item.id ? item : organization,
+        ),
+      )
+      setActive(item)
+    } catch {
+      setMessage('Zmenu sa nepodarilo uložiť.')
+    }
+  }
+
+  if (active) {
+    return (
+      <OrganizationEventManagerScreen
+        organization={active}
+        onCreate={(payload) =>
+          update(`/organizations/${active.id}/events`, 'POST', payload)
+        }
+        onUpdate={(eventId, payload) =>
+          update(
+            `/organizations/${active.id}/events/${eventId}`,
+            'PUT',
+            payload,
+          )
+        }
+        message={message}
+      />
+    )
+  }
+
+  return (
+    <>
+      <Text style={teamStyles.sectionTitle}>ORGANIZÁCIE</Text>
+      {organizations.map((organization) => (
+        <Pressable
+          style={teamStyles.card}
+          key={organization.id}
+          onPress={() => setActive(organization)}
+        >
+          <Text style={teamStyles.title}>{organization.name}</Text>
+        </Pressable>
+      ))}
+      <View style={teamStyles.form}>
+        <Text style={teamStyles.title}>Nová organizácia</Text>
+        <TextInput
+          value={name}
+          onChangeText={setName}
+          placeholder="Názov organizácie"
+          placeholderTextColor="#9aa0a8"
+          style={formStyles.input}
+        />
+        <Pressable
+          style={teamStyles.primary}
+          onPress={() => void create()}
+        >
+          <Text style={teamStyles.primaryText}>Vytvoriť organizáciu</Text>
+        </Pressable>
+      </View>
+      {message ? <Text style={formStyles.error}>{message}</Text> : null}
+    </>
+  )
+}

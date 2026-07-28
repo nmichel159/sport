@@ -21,7 +21,7 @@
     },
     "android": {
       "package": "com.nmichel.sport",
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "pan"
     },
     "androidNavigationBar": {
       "visible": "sticky-immersive",

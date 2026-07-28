@@ -1,0 +1,9 @@
+import type { FormEvent } from 'react'
+import { useAuth } from '../features/auth/context/AuthContext'
+import { EventForm } from '../features/organizations/components/EventForm'
+import { EventsList } from '../features/organizations/components/EventsList'
+import { OrganizationPicker } from '../features/organizations/components/OrganizationPicker'
+import { OrganizationTabs } from '../features/organizations/components/OrganizationTabs'
+import { useOrganizations } from '../features/organizations/hooks/useOrganizations'
+
+export function OrganizationsView() { const { user, logout, token } = useAuth(); const model = useOrganizations(token); const preventAnd = (action: () => Promise<void>) => (event: FormEvent) => { event.preventDefault(); void action() }; return <main className="organization-page"><header className="organization-header"><div><span className="eyebrow">ORGANIZÁCIA</span><h1>Správa eventov</h1><p>{user?.display_name ? `Ahoj, ${user.display_name}.` : 'Vytváraj športové eventy pre svoju komunitu.'}</p></div><button className="logout" onClick={() => void logout()}>Odhlásiť sa</button></header>{model.error && <p className="error">{model.error}</p>}<OrganizationPicker name={model.organizationName} saving={model.saving} onNameChange={model.setOrganizationName} onSubmit={preventAnd(model.addOrganization)} />{model.loading ? <p>Načítavam organizácie…</p> : model.organizations.length === 0 ? <section className="empty"><h2>Začni organizáciou</h2><p>Vytvor si organizáciu a môžeš do nej pridávať eventy.</p></section> : <><OrganizationTabs organizations={model.organizations} selectedId={model.selectedId} onSelect={model.setSelectedId} />{model.selectedOrganization && <div className="organization-content"><EventForm event={model.event} saving={model.saving} onChange={model.updateEvent} onSubmit={preventAnd(model.addEvent)} /><EventsList organization={model.selectedOrganization} /></div>}</>}</main> }

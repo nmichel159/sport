@@ -1,0 +1,2 @@
+import type { Organization } from '../../../services/api'
+export function OrganizationTabs({ organizations, selectedId, onSelect }: { organizations: Organization[]; selectedId: string; onSelect: (id: string) => void }) { return <nav className="organization-tabs" aria-label="Organizácie">{organizations.map((organization) => <button key={organization.id} className={organization.id === selectedId ? 'active' : ''} onClick={() => onSelect(organization.id)}>{organization.name}</button>)}</nav> }

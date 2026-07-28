@@ -1,0 +1,119 @@
+import { useState } from 'react'
+import { Pressable, Text, View } from 'react-native'
+import { formStyles } from '../../../styles/formStyles'
+import { mainStyles } from '../../../styles/mainStyles'
+import { teamStyles } from '../../../styles/teamStyles'
+import type { ApiEvent, ApiTeam } from '../../../types/domain'
+
+type Props = {
+  event: ApiEvent
+  teams: ApiTeam[]
+  onBack: () => void
+  onRegister: (event: ApiEvent, teamId?: string) => Promise<void>
+  message: string
+}
+
+export function EventDetailScreen({
+  event,
+  teams,
+  onBack,
+  onRegister,
+  message,
+}: Props) {
+  const [choosing, setChoosing] = useState(false)
+
+  return (
+    <>
+      <Pressable onPress={onBack}>
+        <Text style={teamStyles.back}>← Späť na eventy</Text>
+      </Pressable>
+
+      <View style={teamStyles.form}>
+        <Text style={teamStyles.sectionTitle}>
+          {event.sport.toUpperCase()} ·{' '}
+          {event.participation_type === 'TEAM'
+            ? 'TÍMOVÝ EVENT'
+            : 'INDIVIDUÁLNY EVENT'}
+        </Text>
+        <Text style={mainStyles.homeGreeting}>{event.name}</Text>
+        <Text style={teamStyles.muted}>
+          {event.event_date ?? 'Termín sa doplní'}
+          {event.location ? ` · ${event.location}` : ''}
+        </Text>
+        <Text style={teamStyles.muted}>
+          {event.fee == null
+            ? 'Bez poplatku'
+            : `Poplatok ${Number(event.fee).toFixed(2)} €`}
+        </Text>
+        {event.description ? (
+          <Text style={mainStyles.mainMuted}>{event.description}</Text>
+        ) : null}
+
+        {event.participation_type === 'INDIVIDUAL' ? (
+          <Pressable
+            style={teamStyles.primary}
+            onPress={() => void onRegister(event)}
+          >
+            <Text style={teamStyles.primaryText}>Prihlásiť sa</Text>
+          </Pressable>
+        ) : choosing ? (
+          <View style={teamStyles.section}>
+            <Text style={teamStyles.muted}>
+              Vyber tím, ktorý chceš prihlásiť:
+            </Text>
+            {teams.length ? (
+              teams.map((team) => (
+                <Pressable
+                  key={team.id}
+                  style={teamStyles.button}
+                  onPress={() => void onRegister(event, team.id)}
+                >
+                  <Text style={teamStyles.buttonText}>{team.name}</Text>
+                </Pressable>
+              ))
+            ) : (
+              <Text style={formStyles.error}>
+                Nemáš tím, ktorého si vlastníkom.
+              </Text>
+            )}
+          </View>
+        ) : (
+          <Pressable
+            style={teamStyles.primary}
+            onPress={() => setChoosing(true)}
+          >
+            <Text style={teamStyles.primaryText}>Prihlásiť tím</Text>
+          </Pressable>
+        )}
+
+        {message ? <Text style={teamStyles.buttonText}>{message}</Text> : null}
+      </View>
+
+      <Text style={teamStyles.sectionTitle}>
+        PRIHLÁSENÍ ({event.registrations.length})
+      </Text>
+      {event.registrations.length ? (
+        event.registrations.map((registration) => (
+          <View style={teamStyles.member} key={registration.id}>
+            <View style={teamStyles.memberAvatar}>
+              <Text style={teamStyles.memberAvatarText}>
+                {registration.name.slice(0, 1).toUpperCase()}
+              </Text>
+            </View>
+            <View>
+              <Text style={teamStyles.title}>{registration.name}</Text>
+              <Text style={teamStyles.muted}>
+                {registration.type === 'TEAM' ? 'Tím' : 'Hráč'}
+              </Text>
+            </View>
+          </View>
+        ))
+      ) : (
+        <Text style={teamStyles.muted}>
+          Zatiaľ nikto nie je prihlásený.
+        </Text>
+      )}
+    </>
+  )
+}
+
