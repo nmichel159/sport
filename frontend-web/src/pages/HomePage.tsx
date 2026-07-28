@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../auth'
 import { createOrganization, createOrganizationEvent, getMyOrganizations, type EventInput, type Organization } from '../services/api'
+import { ClickDateField } from '../components/ClickDateField'
 
 const emptyEvent: EventInput = { name: '', sport: '', participation_type: 'TEAM', event_date: null, location: null, fee: null, description: null }
 
@@ -26,7 +27,7 @@ export function HomePage() {
       <nav className="organization-tabs" aria-label="Organizácie">{organizations.map((organization) => <button key={organization.id} className={organization.id === selectedId ? 'active' : ''} onClick={() => setSelectedId(organization.id)}>{organization.name}</button>)}</nav>
       {selectedOrganization && <div className="organization-content"><section className="event-form-card"><span className="eyebrow">NOVÝ EVENT</span><h2>Vytvor event</h2><p>Vyplň základné informácie pre účastníkov.</p><form className="event-form" onSubmit={submitEvent}>
         <label>Názov eventu<input required value={event.name} onChange={(e) => updateEvent('name', e.target.value)} placeholder="Napr. Letný futbalový turnaj" /></label>
-        <div className="form-grid"><label>Šport<input required value={event.sport} onChange={(e) => updateEvent('sport', e.target.value)} placeholder="Napr. futbal" /></label><label>Kedy<input type="date" value={event.event_date ?? ''} onChange={(e) => updateEvent('event_date', e.target.value || null)} /></label></div>
+        <div className="form-grid"><label>Šport<input required value={event.sport} onChange={(e) => updateEvent('sport', e.target.value)} placeholder="Napr. futbal" /></label><ClickDateField label="Kedy" value={event.event_date} onChange={(value) => updateEvent('event_date', value)} /></div>
         <label>Kde<input value={event.location ?? ''} onChange={(e) => updateEvent('location', e.target.value || null)} placeholder="Miesto konania" /></label>
         <fieldset><legend>Forma účasti</legend><div className="mode-choice"><button type="button" className={event.participation_type === 'TEAM' ? 'selected' : ''} onClick={() => updateEvent('participation_type', 'TEAM')}>Tímové</button><button type="button" className={event.participation_type === 'INDIVIDUAL' ? 'selected' : ''} onClick={() => updateEvent('participation_type', 'INDIVIDUAL')}>Samostatné</button></div></fieldset>
         <label>Poplatok (€)<input type="number" min="0" step="0.01" value={event.fee ?? ''} onChange={(e) => updateEvent('fee', e.target.value === '' ? null : Number(e.target.value))} placeholder="0,00" /></label>

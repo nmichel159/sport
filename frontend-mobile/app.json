@@ -20,7 +20,14 @@
       }
     },
     "android": {
-      "package": "com.nmichel.sport"
+      "package": "com.nmichel.sport",
+      "softwareKeyboardLayoutMode": "resize"
+    },
+    "androidNavigationBar": {
+      "visible": "sticky-immersive",
+      "barStyle": "light-content",
+      "backgroundColor": "#0b0c0e",
+      "enforceContrast": false
     }
   }
 }

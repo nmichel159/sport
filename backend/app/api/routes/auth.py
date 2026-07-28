@@ -34,9 +34,9 @@ def development_login(response: Response, db: Session = Depends(get_db)):
     if get_settings().environment != "development":
         raise HTTPException(status.HTTP_404_NOT_FOUND)
     from sqlalchemy import select
-    user = db.scalar(select(User).where(User.email == "expo-demo@sport.local"))
+    user = db.scalar(select(User).where(User.email == "norbert.michel@sport.local"))
     if not user:
-        user = User(email="expo-demo@sport.local", email_verified=False, display_name="Expo Tester")
+        user = User(email="norbert.michel@sport.local", email_verified=True, display_name="Norbert Michel", nickname="norbert_michel", onboarding_completed=True)
         db.add(user); db.commit(); db.refresh(user)
     _, refresh = create_session(db, user, "Expo Go", "mobile")
     return {"access_token": create_access_token(user), "refresh_token": refresh, "user": user}
