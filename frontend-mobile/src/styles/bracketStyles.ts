@@ -56,6 +56,22 @@ export const bracketStyles = StyleSheet.create({
     lineHeight: 19,
     textAlign: 'center',
   },
+  nextMatch: {
+    backgroundColor: '#24220d',
+    borderColor: '#746200',
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 15,
+    gap: 4,
+  },
+  nextMatchLabel: {
+    color: '#c8a900',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.1,
+  },
+  nextMatchTitle: { color: '#fff6b3', fontSize: 18, fontWeight: '900' },
+  nextMatchOpponent: { color: '#f3f4f6', fontSize: 14, fontWeight: '700' },
   bracket: {
     minHeight: 520,
     gap: 20,
@@ -128,6 +144,7 @@ export const bracketStyles = StyleSheet.create({
     backgroundColor: '#29270f',
     borderColor: '#8c7900',
   },
+  participantMine: { borderColor: '#ffd400', borderWidth: 1.5 },
   participantName: {
     flex: 1,
     color: '#f3f4f6',
@@ -151,6 +168,13 @@ export const bracketStyles = StyleSheet.create({
     borderColor: '#3b3e46',
     borderWidth: 1,
     borderRadius: 8,
+  },
+  readonlyScore: {
+    minWidth: 30,
+    color: '#f3f4f6',
+    fontSize: 16,
+    fontWeight: '900',
+    textAlign: 'center',
   },
   saveButton: {
     alignItems: 'center',

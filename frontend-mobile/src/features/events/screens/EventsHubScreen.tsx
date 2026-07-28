@@ -86,6 +86,8 @@ export function EventsHubScreen({
       <EventDetailScreen
         event={active}
         teams={teams.filter((team) => team.owner_user_id === userId)}
+        userId={userId}
+        fetcher={fetcher}
         onBack={() => {
           setActive(null)
           setMessage('')

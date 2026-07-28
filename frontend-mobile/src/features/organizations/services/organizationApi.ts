@@ -53,3 +53,12 @@ export async function requestEventBracket(
   }
   return (await response.json()) as EventBracket
 }
+
+export async function requestParticipantBracket(
+  fetcher: AuthenticatedFetch,
+  eventId: string,
+): Promise<EventBracket> {
+  const response = await fetcher(`/organizations/events/${eventId}/bracket`)
+  if (!response.ok) throw Error('PARTICIPANT_BRACKET_REQUEST_FAILED')
+  return (await response.json()) as EventBracket
+}

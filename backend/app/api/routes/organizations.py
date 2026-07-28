@@ -156,6 +156,36 @@ def manageable_event(
     return organization, event
 
 
+def event_bracket_viewer(
+    event_id: uuid.UUID, user: User, db: Session
+) -> OrganizationEvent:
+    event = db.get(OrganizationEvent, event_id)
+    if not event:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail={"code": "EVENT_NOT_FOUND"}
+        )
+    is_individual_participant = db.scalar(
+        select(OrganizationEventRegistration.id).where(
+            OrganizationEventRegistration.event_id == event.id,
+            OrganizationEventRegistration.user_id == user.id,
+        )
+    )
+    is_team_owner_participant = db.scalar(
+        select(OrganizationEventRegistration.id)
+        .join(Team, Team.id == OrganizationEventRegistration.team_id)
+        .where(
+            OrganizationEventRegistration.event_id == event.id,
+            Team.owner_user_id == user.id,
+        )
+    )
+    if not is_individual_participant and not is_team_owner_participant:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail={"code": "EVENT_PARTICIPANT_REQUIRED"},
+        )
+    return event
+
+
 def selected_format(
     format_id: uuid.UUID | None, db: Session
 ) -> TournamentFormat:
@@ -331,6 +361,15 @@ def read_event(
             status.HTTP_404_NOT_FOUND, detail={"code": "EVENT_NOT_FOUND"}
         )
     return event_read(event, db)
+
+
+@router.get("/events/{event_id}/bracket", response_model=EventBracketRead)
+def read_participant_event_bracket(
+    event_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    return bracket_read(event_bracket_viewer(event_id, user, db), db)
 
 
 @router.post(

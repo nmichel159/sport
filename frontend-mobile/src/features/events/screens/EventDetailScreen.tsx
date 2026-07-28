@@ -3,11 +3,14 @@ import { Pressable, Text, View } from 'react-native'
 import { formStyles } from '../../../styles/formStyles'
 import { mainStyles } from '../../../styles/mainStyles'
 import { teamStyles } from '../../../styles/teamStyles'
-import type { ApiEvent, ApiTeam } from '../../../types/domain'
+import type { ApiEvent, ApiTeam, AuthenticatedFetch } from '../../../types/domain'
+import { MyTournamentScreen } from './MyTournamentScreen'
 
 type Props = {
   event: ApiEvent
   teams: ApiTeam[]
+  userId: string
+  fetcher: AuthenticatedFetch
   onBack: () => void
   onRegister: (event: ApiEvent, teamId?: string) => Promise<void>
   message: string
@@ -16,11 +19,32 @@ type Props = {
 export function EventDetailScreen({
   event,
   teams,
+  userId,
+  fetcher,
   onBack,
   onRegister,
   message,
 }: Props) {
   const [choosing, setChoosing] = useState(false)
+  const [showTournament, setShowTournament] = useState(false)
+  const ownedTeamIds = new Set(teams.map((team) => team.id))
+  const isRegistered = event.registrations.some(
+    (registration) =>
+      registration.user_id === userId ||
+      (registration.team_id !== null && ownedTeamIds.has(registration.team_id)),
+  )
+
+  if (showTournament) {
+    return (
+      <MyTournamentScreen
+        event={event}
+        userId={userId}
+        ownedTeamIds={ownedTeamIds}
+        fetcher={fetcher}
+        onBack={() => setShowTournament(false)}
+      />
+    )
+  }
 
   return (
     <>
@@ -49,7 +73,14 @@ export function EventDetailScreen({
           <Text style={mainStyles.mainMuted}>{event.description}</Text>
         ) : null}
 
-        {event.participation_type === 'INDIVIDUAL' ? (
+        {isRegistered ? (
+          <Pressable
+            style={teamStyles.primary}
+            onPress={() => setShowTournament(true)}
+          >
+            <Text style={teamStyles.primaryText}>Môj priebeh turnaja</Text>
+          </Pressable>
+        ) : event.participation_type === 'INDIVIDUAL' ? (
           <Pressable
             style={teamStyles.primary}
             onPress={() => void onRegister(event)}
@@ -116,4 +147,3 @@ export function EventDetailScreen({
     </>
   )
 }
-
