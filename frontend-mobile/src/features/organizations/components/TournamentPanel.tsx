@@ -4,9 +4,9 @@ import {
   Pressable,
   ScrollView,
   Text,
-  TextInput,
   View,
 } from 'react-native'
+import { AppTextInput } from '../../../components/AppTextInput'
 import { bracketStyles } from '../../../styles/bracketStyles'
 import { formStyles } from '../../../styles/formStyles'
 import { teamStyles } from '../../../styles/teamStyles'
@@ -326,7 +326,7 @@ export function TournamentPanel({
                               {participantName(match, side)}
                             </Text>
                             {ready ? (
-                              <TextInput
+                              <AppTextInput
                                 value={scoreValue(match, side)}
                                 onChangeText={(value) =>
                                   updateDraft(match, side, value)

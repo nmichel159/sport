@@ -1,5 +1,11 @@
 import { useEffect } from 'react'
-import { Modal, type ModalProps } from 'react-native'
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  type ModalProps,
+} from 'react-native'
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView'
 import { applySystemUiSettings } from './SystemUiController'
 
 /**
@@ -37,8 +43,19 @@ export function SystemModal({
         onDismiss?.()
       }}
     >
-      {children}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <KeyboardAwareScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flexGrow: 1 }}
+          automaticallyAdjustKeyboardInsets
+          keyboardDismissMode="on-drag"
+        >
+          {children}
+        </KeyboardAwareScrollView>
+      </KeyboardAvoidingView>
     </Modal>
   )
 }
-

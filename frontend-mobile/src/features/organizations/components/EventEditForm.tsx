@@ -1,4 +1,5 @@
-import { Pressable, Text, TextInput, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
+import { AppTextInput } from '../../../components/AppTextInput'
 import { formStyles } from '../../../styles/formStyles'
 import { teamStyles } from '../../../styles/teamStyles'
 
@@ -26,14 +27,14 @@ export function EventEditForm({
   return (
     <View style={teamStyles.form}>
       <Text style={teamStyles.title}>Základné údaje</Text>
-      <TextInput
+      <AppTextInput
         value={name}
         onChangeText={onNameChange}
         placeholder="Názov eventu"
         placeholderTextColor="#9aa0a8"
         style={formStyles.input}
       />
-      <TextInput
+      <AppTextInput
         value={description}
         onChangeText={onDescriptionChange}
         placeholder="Popis eventu"
@@ -60,4 +61,3 @@ export function EventEditForm({
     </View>
   )
 }
-

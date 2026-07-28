@@ -1,4 +1,5 @@
-import { Pressable, Text, TextInput, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
+import { AppTextInput } from '../../../components/AppTextInput'
 import { SystemModal } from '../../../system/SystemModal'
 import { formStyles } from '../../../styles/formStyles'
 
@@ -27,7 +28,7 @@ export function CreateOrganizationModal({
       <View style={formStyles.modalOverlay}>
         <View style={formStyles.modalSheet}>
           <Text style={formStyles.modalTitle}>Vytvoriť organizáciu</Text>
-          <TextInput
+          <AppTextInput
             value={name}
             onChangeText={onNameChange}
             placeholder="Názov organizácie"

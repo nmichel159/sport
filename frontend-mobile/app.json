@@ -22,7 +22,7 @@
     },
     "android": {
       "package": "com.nmichel.sport",
-      "softwareKeyboardLayoutMode": "pan",
+      "softwareKeyboardLayoutMode": "resize",
       "backgroundColor": "#0b0c0e",
       "edgeToEdgeEnabled": false
     },

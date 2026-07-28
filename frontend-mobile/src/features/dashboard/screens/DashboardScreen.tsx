@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { ScrollView, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 import { BottomNavigation } from '../../../components/BottomNavigation'
+import { KeyboardAwareScrollView } from '../../../components/KeyboardAwareScrollView'
 import { EventsHubScreen } from '../../events/screens/EventsHubScreen'
 import { HomeTab } from '../../home/components/HomeTab'
 import { RankingScreen } from '../../rankings/screens/RankingScreen'
@@ -74,7 +75,12 @@ export function DashboardScreen({ name, userId, onSignOut }: Props) {
   return (
     <View style={mainStyles.mainApp}>
       <AppHeader title={title} />
-      <ScrollView contentContainerStyle={mainStyles.mainContent}>
+      <KeyboardAwareScrollView
+        contentContainerStyle={mainStyles.mainContent}
+        automaticallyAdjustKeyboardInsets
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+      >
         {error ? <Text style={formStyles.error}>{error}</Text> : null}
         {selectedTeam ? (
           <TeamDetailScreen
@@ -108,7 +114,7 @@ export function DashboardScreen({ name, userId, onSignOut }: Props) {
         ) : (
           <RankingScreen fetcher={authenticatedFetch} />
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       {!selectedTeam ? (
         <BottomNavigation

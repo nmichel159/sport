@@ -1,4 +1,5 @@
-import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
+import { AppTextInput } from './AppTextInput'
 
 /**
  * Search-only catalog field. A value becomes valid only after selecting an
@@ -47,7 +48,7 @@ export function ValidatedCatalogInput<T>({
   ) : null
 
   return <View style={styles.container}>
-    <TextInput
+    <AppTextInput
       value={selected ? getLabel(selected) : query}
       onFocus={beginNewSearch}
       onChangeText={onQueryChange}

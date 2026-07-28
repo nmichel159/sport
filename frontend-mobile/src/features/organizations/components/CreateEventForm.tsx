@@ -1,4 +1,5 @@
-import { Pressable, Text, TextInput, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
+import { AppTextInput } from '../../../components/AppTextInput'
 import { DatePickerModal } from '../../../components/DatePickerModal'
 import { catalogStyles } from '../../../styles/catalogStyles'
 import { formStyles } from '../../../styles/formStyles'
@@ -19,7 +20,7 @@ export function CreateEventForm({ onCreate, fetcher, message }: Props) {
     <>
       <View style={teamStyles.form}>
         <Text style={teamStyles.title}>Vytvoriť event</Text>
-        <TextInput
+        <AppTextInput
           value={form.name}
           onChangeText={form.setName}
           placeholder="Názov eventu"
@@ -110,7 +111,7 @@ export function CreateEventForm({ onCreate, fetcher, message }: Props) {
           </Text>
         </Pressable>
 
-        <TextInput
+        <AppTextInput
           value={form.city ? form.city.name : form.cityQuery}
           onChangeText={(value) => {
             form.setCity(null)
@@ -138,7 +139,7 @@ export function CreateEventForm({ onCreate, fetcher, message }: Props) {
           </Pressable>
         ))}
 
-        <TextInput
+        <AppTextInput
           value={form.description}
           onChangeText={form.setDescription}
           placeholder="Popis eventu"

@@ -2,13 +2,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   Text,
-  TextInput,
   View,
 } from 'react-native'
+import { AppTextInput } from '../../../components/AppTextInput'
 import { DatePickerModal } from '../../../components/DatePickerModal'
 import { Field } from '../../../components/Field'
+import { KeyboardAwareScrollView } from '../../../components/KeyboardAwareScrollView'
 import { ValidatedCatalogInput } from '../../../components/ValidatedCatalogInput'
 import { formStyles } from '../../../styles/formStyles'
 import type { OnboardingData } from '../../../types/onboarding'
@@ -26,10 +26,12 @@ export function OnboardingScreen(props: Props) {
   return (
     <KeyboardAvoidingView
       style={formStyles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView
+      <KeyboardAwareScrollView
         contentContainerStyle={formStyles.onboardingContainer}
+        automaticallyAdjustKeyboardInsets
+        keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="always"
       >
         <Text style={formStyles.brand}>
@@ -39,7 +41,7 @@ export function OnboardingScreen(props: Props) {
           <Text style={formStyles.title}>Spoznajme sa.</Text>
 
           <Field label="Nick">
-            <TextInput
+            <AppTextInput
               style={formStyles.input}
               value={form.nickname}
               onChangeText={form.setNickname}
@@ -48,7 +50,7 @@ export function OnboardingScreen(props: Props) {
           </Field>
 
           <Field label="Meno">
-            <TextInput
+            <AppTextInput
               style={formStyles.input}
               value={form.firstName}
               onChangeText={form.setFirstName}
@@ -56,7 +58,7 @@ export function OnboardingScreen(props: Props) {
           </Field>
 
           <Field label="Priezvisko">
-            <TextInput
+            <AppTextInput
               style={formStyles.input}
               value={form.lastName}
               onChangeText={form.setLastName}
@@ -139,7 +141,7 @@ export function OnboardingScreen(props: Props) {
             </Text>
           </Pressable>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <DatePickerModal
         visible={form.showDatePicker}

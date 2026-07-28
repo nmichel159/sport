@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Pressable, Text, TextInput, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
+import { AppTextInput } from '../../../components/AppTextInput'
 import { teamColors } from '../../../constants/teamColors'
 import { formStyles } from '../../../styles/formStyles'
 import { mainStyles } from '../../../styles/mainStyles'
@@ -87,7 +88,7 @@ export function TeamsProfileContent({
         {creating ? (
           <View style={teamStyles.form}>
             <Text style={teamStyles.title}>Vytvoriť tím</Text>
-            <TextInput
+            <AppTextInput
               value={teamName}
               onChangeText={setTeamName}
               placeholder="Názov tímu"
@@ -127,4 +128,3 @@ export function TeamsProfileContent({
     </>
   )
 }
-

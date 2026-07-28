@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Pressable, Text, TextInput, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
+import { AppTextInput } from '../../../components/AppTextInput'
 import { formStyles } from '../../../styles/formStyles'
 import { teamStyles } from '../../../styles/teamStyles'
 import type { ApiTeam } from '../../../types/domain'
@@ -66,7 +67,7 @@ export function TeamDetailScreen({ team, onBack, onAdd }: Props) {
           <Text style={teamStyles.muted}>
             Zadaj presný jedinečný nick hráča.
           </Text>
-          <TextInput
+          <AppTextInput
             value={nickname}
             onChangeText={setNickname}
             placeholder="nick_hraca"
@@ -102,4 +103,3 @@ export function TeamDetailScreen({ team, onBack, onAdd }: Props) {
     </>
   )
 }
-

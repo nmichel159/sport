@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Pressable, Text, TextInput, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
+import { AppTextInput } from '../../../components/AppTextInput'
 import { formStyles } from '../../../styles/formStyles'
 import { teamStyles } from '../../../styles/teamStyles'
 import type {
@@ -89,7 +90,7 @@ export function OrganizationManagerScreen({
     <>
       <View style={teamStyles.form}>
         <Text style={teamStyles.title}>Nová organizácia</Text>
-        <TextInput
+        <AppTextInput
           value={name}
           onChangeText={setName}
           placeholder="Názov organizácie"
