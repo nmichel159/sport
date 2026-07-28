@@ -23,9 +23,9 @@ export function EventManagementMenu({
       </Pressable>
       <Pressable style={teamStyles.card} onPress={onOpenTournament}>
         <View style={teamStyles.info}>
-          <Text style={teamStyles.title}>Vnútro konania turnaja</Text>
+          <Text style={teamStyles.title}>Rozpis zápasov</Text>
           <Text style={teamStyles.muted}>
-            Zápasy, výsledky, tabuľky a priebeh turnaja.
+            Generovanie pavúka a zapisovanie výsledkov.
           </Text>
         </View>
         <Text style={teamStyles.buttonText}>›</Text>
@@ -33,4 +33,3 @@ export function EventManagementMenu({
     </View>
   )
 }
-

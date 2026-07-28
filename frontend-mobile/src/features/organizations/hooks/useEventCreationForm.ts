@@ -6,18 +6,24 @@ import {
   searchDistrictCities,
 } from '../../../services/catalogs'
 import type {
+  AuthenticatedFetch,
   EventPayload,
   ParticipationType,
+  TournamentFormat,
 } from '../../../types/domain'
 import { toIsoDate } from '../../../utils/date'
+import { requestEventFormats } from '../services/organizationApi'
 
 export function useEventCreationForm(
+  fetcher: AuthenticatedFetch,
   onCreate: (payload: EventPayload) => Promise<void>,
 ) {
   const [sports, setSports] = useState<Sport[]>([])
+  const [formats, setFormats] = useState<TournamentFormat[]>([])
   const [name, setName] = useState('')
   const [sport, setSport] = useState('')
   const [mode, setMode] = useState<ParticipationType>('TEAM')
+  const [formatId, setFormatId] = useState('')
   const [eventDate, setEventDate] = useState<Date | null>(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [cityQuery, setCityQuery] = useState('')
@@ -28,12 +34,17 @@ export function useEventCreationForm(
   const [error, setError] = useState('')
 
   useEffect(() => {
-    void loadSports()
-      .then(setSports)
-      .catch(() =>
-        setError('Číselník športov sa nepodarilo načítať.'),
-      )
-  }, [])
+    void Promise.all([loadSports(), requestEventFormats(fetcher)])
+      .then(([sportItems, formatItems]) => {
+        setSports(sportItems)
+        setFormats(formatItems)
+        const singleElimination = formatItems.find(
+          (item) => item.code === 'SINGLE_ELIMINATION',
+        )
+        setFormatId(singleElimination?.id ?? formatItems[0]?.id ?? '')
+      })
+      .catch(() => setError('Číselníky sa nepodarilo načítať.'))
+  }, [fetcher])
 
   useEffect(() => {
     if (city || cityQuery.trim().length < 2) {
@@ -51,8 +62,8 @@ export function useEventCreationForm(
   }, [cityQuery, city])
 
   const submit = async () => {
-    if (!name.trim() || !sport || !eventDate || !city) {
-      setError('Vyplň názov, šport, termín a mesto zo zoznamu.')
+    if (!name.trim() || !sport || !formatId || !eventDate || !city) {
+      setError('Vyplň názov, šport, herný systém, termín a mesto.')
       return
     }
 
@@ -64,6 +75,7 @@ export function useEventCreationForm(
         name: name.trim(),
         sport,
         participation_type: mode,
+        format_id: formatId,
         event_date: toIsoDate(eventDate),
         location: city.name,
         description: description.trim() || null,
@@ -71,6 +83,10 @@ export function useEventCreationForm(
       setName('')
       setSport('')
       setMode('TEAM')
+      const singleElimination = formats.find(
+        (item) => item.code === 'SINGLE_ELIMINATION',
+      )
+      setFormatId(singleElimination?.id ?? formats[0]?.id ?? '')
       setEventDate(null)
       setCityQuery('')
       setCity(null)
@@ -84,12 +100,15 @@ export function useEventCreationForm(
 
   return {
     sports,
+    formats,
     name,
     setName,
     sport,
     setSport,
     mode,
     setMode,
+    formatId,
+    setFormatId,
     eventDate,
     setEventDate,
     showDatePicker,
@@ -106,4 +125,3 @@ export function useEventCreationForm(
     submit,
   }
 }
-

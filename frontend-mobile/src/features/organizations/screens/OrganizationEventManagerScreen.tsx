@@ -4,6 +4,7 @@ import { teamStyles } from '../../../styles/teamStyles'
 import type {
   ApiEvent,
   ApiOrganization,
+  AuthenticatedFetch,
   EventPayload,
 } from '../../../types/domain'
 import { CreateEventForm } from '../components/CreateEventForm'
@@ -12,6 +13,7 @@ import { OrganizationEventDetailScreen } from './OrganizationEventDetailScreen'
 
 type Props = {
   organization: ApiOrganization
+  fetcher: AuthenticatedFetch
   onCreate: (payload: EventPayload) => Promise<void>
   onUpdate: (eventId: string, payload: EventPayload) => Promise<void>
   message: string
@@ -19,6 +21,7 @@ type Props = {
 
 export function OrganizationEventManagerScreen({
   organization,
+  fetcher,
   onCreate,
   onUpdate,
   message,
@@ -29,6 +32,8 @@ export function OrganizationEventManagerScreen({
     return (
       <OrganizationEventDetailScreen
         event={openedEvent}
+        organizationId={organization.id}
+        fetcher={fetcher}
         onBack={() => setOpenedEvent(null)}
         onSave={onUpdate}
       />
@@ -47,7 +52,11 @@ export function OrganizationEventManagerScreen({
         events={organization.events}
         onOpen={setOpenedEvent}
       />
-      <CreateEventForm onCreate={onCreate} message={message} />
+      <CreateEventForm
+        onCreate={onCreate}
+        fetcher={fetcher}
+        message={message}
+      />
     </>
   )
 }

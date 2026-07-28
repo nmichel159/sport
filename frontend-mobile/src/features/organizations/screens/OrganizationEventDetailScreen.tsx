@@ -1,7 +1,11 @@
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { teamStyles } from '../../../styles/teamStyles'
-import type { ApiEvent, EventPayload } from '../../../types/domain'
+import type {
+  ApiEvent,
+  AuthenticatedFetch,
+  EventPayload,
+} from '../../../types/domain'
 import { EventEditForm } from '../components/EventEditForm'
 import { EventManagementMenu } from '../components/EventManagementMenu'
 import { TournamentPanel } from '../components/TournamentPanel'
@@ -10,12 +14,16 @@ type DetailSection = 'menu' | 'edit' | 'tournament'
 
 type Props = {
   event: ApiEvent
+  organizationId: string
+  fetcher: AuthenticatedFetch
   onBack: () => void
   onSave: (eventId: string, payload: EventPayload) => Promise<void>
 }
 
 export function OrganizationEventDetailScreen({
   event,
+  organizationId,
+  fetcher,
   onBack,
   onSave,
 }: Props) {
@@ -34,6 +42,7 @@ export function OrganizationEventDetailScreen({
         name,
         sport: event.sport,
         participation_type: event.participation_type,
+        format_id: event.format_id,
         event_date: event.event_date,
         location: event.location,
         fee: event.fee,
@@ -80,7 +89,12 @@ export function OrganizationEventDetailScreen({
           onBack={() => setSection('menu')}
         />
       ) : (
-        <TournamentPanel onBack={() => setSection('menu')} />
+        <TournamentPanel
+          event={event}
+          organizationId={organizationId}
+          fetcher={fetcher}
+          onBack={() => setSection('menu')}
+        />
       )}
     </>
   )

@@ -3,16 +3,17 @@ import { DatePickerModal } from '../../../components/DatePickerModal'
 import { catalogStyles } from '../../../styles/catalogStyles'
 import { formStyles } from '../../../styles/formStyles'
 import { teamStyles } from '../../../styles/teamStyles'
-import type { EventPayload } from '../../../types/domain'
+import type { AuthenticatedFetch, EventPayload } from '../../../types/domain'
 import { useEventCreationForm } from '../hooks/useEventCreationForm'
 
 type Props = {
   onCreate: (payload: EventPayload) => Promise<void>
+  fetcher: AuthenticatedFetch
   message: string
 }
 
-export function CreateEventForm({ onCreate, message }: Props) {
-  const form = useEventCreationForm(onCreate)
+export function CreateEventForm({ onCreate, fetcher, message }: Props) {
+  const form = useEventCreationForm(fetcher, onCreate)
 
   return (
     <>
@@ -62,6 +63,34 @@ export function CreateEventForm({ onCreate, message }: Props) {
           >
             <Text style={formStyles.genderText}>Jednotlivci</Text>
           </Pressable>
+        </View>
+
+        <Text style={teamStyles.muted}>Herný systém</Text>
+        <View style={formStyles.genderRow}>
+          {form.formats.map((item) => {
+            const selected = form.formatId === item.id
+            return (
+              <Pressable
+                key={item.id}
+                style={[
+                  formStyles.genderChip,
+                  selected && formStyles.genderChipSelected,
+                ]}
+                onPress={() => form.setFormatId(item.id)}
+              >
+                <Text
+                  style={[
+                    formStyles.genderText,
+                    selected && formStyles.genderTextSelected,
+                  ]}
+                >
+                  {item.code === 'SINGLE_ELIMINATION'
+                    ? 'Pavúk'
+                    : item.name}
+                </Text>
+              </Pressable>
+            )
+          })}
         </View>
 
         <Pressable

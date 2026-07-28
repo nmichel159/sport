@@ -70,6 +70,7 @@ export const formStyles = StyleSheet.create({
     borderColor: '#ffd400',
   },
   genderText: { color: '#f3f4f6', fontSize: 13, fontWeight: '700' },
+  genderTextSelected: { color: '#171400' },
   continueButton: {
     backgroundColor: '#ffd400',
     borderRadius: 12,

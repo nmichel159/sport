@@ -69,6 +69,7 @@ export function OrganizationManagerScreen({
     return (
       <OrganizationEventManagerScreen
         organization={active}
+        fetcher={fetcher}
         onCreate={(payload) =>
           update(`/organizations/${active.id}/events`, 'POST', payload)
         }

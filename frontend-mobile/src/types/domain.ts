@@ -12,7 +12,7 @@ export type ApiTeam = {
   members: ApiTeamMember[]
 }
 
-type ApiRegistration = {
+export type ApiRegistration = {
   id: string
   user_id: string | null
   team_id: string | null
@@ -22,11 +22,20 @@ type ApiRegistration = {
 
 export type ParticipationType = 'TEAM' | 'INDIVIDUAL'
 
+export type TournamentFormat = {
+  id: string
+  code: string
+  name: string
+}
+
 export type ApiEvent = {
   id: string
   name: string
   sport: string
   participation_type: ParticipationType
+  format_id: string | null
+  format_code: string | null
+  format_name: string | null
   event_date?: string | null
   location?: string | null
   fee?: number | null
@@ -38,6 +47,7 @@ export type EventPayload = {
   name: string
   sport: string
   participation_type: ParticipationType
+  format_id?: string | null
   event_date?: string | null
   location?: string | null
   fee?: number | null
@@ -81,3 +91,27 @@ export type AuthenticatedFetch = (
   path: string,
   init?: RequestInit,
 ) => Promise<Response>
+
+export type BracketParticipant = {
+  registration_id: string
+  name: string
+}
+
+export type BracketMatch = {
+  id: string
+  round_number: number
+  position: number
+  participant_a: BracketParticipant | null
+  participant_b: BracketParticipant | null
+  score_a: number | null
+  score_b: number | null
+  winner_registration_id: string | null
+  is_bye: boolean
+}
+
+export type EventBracket = {
+  event_id: string
+  generated: boolean
+  round_count: number
+  matches: BracketMatch[]
+}

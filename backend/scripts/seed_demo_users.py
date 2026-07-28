@@ -15,11 +15,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from sqlalchemy import select, text
 
 from app.core.database import SessionLocal
-from app.models.user import Organization, OrganizationEvent, OrganizationEventRegistration, OrganizationMember, Team, TeamMember, User
+from app.models.user import AuthIdentity, Organization, OrganizationEvent, OrganizationEventRegistration, OrganizationMember, Team, TeamMember, TournamentFormat, User
 from app.services.catalogs import get_catalog
 
 
 PLAYERS = [
+    ("noro.michel159@gmail.com", "nick", "Noro", "Micheľ Mich3l", date(1995, 5, 12), "male", "Bratislava"),
     ("norbert.michel@sport.local", "norbert_michel", "Norbert", "Michel", date(1995, 5, 12), "male", "Bratislava"),
     ("adam.kovac@example.test", "adam_3x3", "Adam", "Kováč", date(2005, 3, 14), "male", "Bratislava"),
     ("nina.horvathova@example.test", "nina_hoops", "Nina", "Horváthová", date(2006, 8, 2), "female", "Košice"),
@@ -28,6 +29,8 @@ PLAYERS = [
     ("jakub.varga@example.test", "jako_33", "Jakub", "Varga", date(2005, 6, 8), "male", "Prešov"),
     ("lea.malikova@example.test", "lea_sport", "Lea", "Malíková", date(2006, 9, 30), "female", "Trnava"),
 ]
+
+NORO_GOOGLE_SUBJECT = "112593596799709738455"
 
 
 def school_for_city(schools: list[dict[str, object]], city: str) -> str:
@@ -46,6 +49,9 @@ def main() -> None:
             added += 1
         db.commit()
         users = {user.email: user for user in db.scalars(select(User).where(User.email.in_([player[0] for player in PLAYERS]))).all()}
+        noro = users["noro.michel159@gmail.com"]
+        if not db.scalar(select(AuthIdentity).where(AuthIdentity.provider == "GOOGLE", AuthIdentity.provider_subject == NORO_GOOGLE_SUBJECT)):
+            db.add(AuthIdentity(user_id=noro.id, provider="GOOGLE", provider_subject=NORO_GOOGLE_SUBJECT, provider_email=noro.email, provider_email_verified=True))
         sara = users["sara.kralova@example.test"]
         norbert = users["norbert.michel@sport.local"]
         adam = users["adam.kovac@example.test"]
@@ -76,6 +82,27 @@ def main() -> None:
         if not db.scalar(select(OrganizationEventRegistration).where(OrganizationEventRegistration.event_id == registered_event.id, OrganizationEventRegistration.user_id == norbert.id)):
             db.add(OrganizationEventRegistration(event_id=registered_event.id, user_id=norbert.id))
 
+        single_elimination = db.scalar(select(TournamentFormat).where(TournamentFormat.code == "SINGLE_ELIMINATION", TournamentFormat.is_active.is_(True)))
+        if not single_elimination:
+            raise RuntimeError("The SINGLE_ELIMINATION tournament format is missing.")
+        noro_organization = db.scalar(select(Organization).where(Organization.slug == "noro-testovaci-pavuk-20260728"))
+        if not noro_organization:
+            noro_organization = Organization(name="Noro – testovací pavúk", slug="noro-testovaci-pavuk-20260728", owner_user_id=noro.id)
+            db.add(noro_organization)
+            db.flush()
+        if not db.get(OrganizationMember, {"organization_id": noro_organization.id, "user_id": noro.id}):
+            db.add(OrganizationMember(organization_id=noro_organization.id, user_id=noro.id, role="ADMIN"))
+        noro_event = db.scalar(select(OrganizationEvent).where(OrganizationEvent.organization_id == noro_organization.id, OrganizationEvent.name == "Testovací pavúk – 5 hráčov"))
+        if not noro_event:
+            noro_event = OrganizationEvent(organization_id=noro_organization.id, created_by_user_id=noro.id, name="Testovací pavúk – 5 hráčov", sport="Basketball", participation_type="INDIVIDUAL", format_id=single_elimination.id, event_date=date(2026, 7, 28), location="Testovacie ihrisko", description="Demo event na overenie generovania vyraďovacieho pavúka.")
+            db.add(noro_event)
+            db.flush()
+        elif noro_event.format_id is None:
+            noro_event.format_id = single_elimination.id
+        for email in ("adam.kovac@example.test", "nina.horvathova@example.test", "matej.novak@example.test", "sara.kralova@example.test", "jakub.varga@example.test"):
+            if not db.scalar(select(OrganizationEventRegistration).where(OrganizationEventRegistration.event_id == noro_event.id, OrganizationEventRegistration.user_id == users[email].id)):
+                db.add(OrganizationEventRegistration(event_id=noro_event.id, user_id=users[email].id))
+
         for code, name in (("basketball", "Basketbal"), ("football", "Futbal"), ("floorball", "Florbal")):
             db.execute(text("INSERT INTO sports (code, name) VALUES (:code, :name) ON CONFLICT (code) DO NOTHING"), {"code": code, "name": name})
         db.flush()
@@ -94,7 +121,7 @@ def main() -> None:
             for code, xp in zip(("basketball", "football", "floorball"), values):
                 db.execute(text("INSERT INTO player_sport_xp (user_id, sport_id, xp) VALUES (:user_id, :sport_id, :xp) ON CONFLICT (user_id, sport_id) DO UPDATE SET xp=EXCLUDED.xp"), {"user_id": users[email].id, "sport_id": sport_ids[code], "xp": xp})
         db.commit()
-        print(f"Created {added} demo players, Sára's organization, two events, and Norbert's registration.")
+        print(f"Created {added} demo players, Sára's organization, and Noro's five-player bracket event.")
     finally:
         db.close()
 
