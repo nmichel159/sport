@@ -89,6 +89,9 @@ export function DashboardScreen({ name, userId, onSignOut }: Props) {
             onCreate={create}
             onOpen={setSelectedTeamId}
             onSignOut={onSignOut}
+            organizations={organizations}
+            setOrganizations={setOrganizations}
+            fetcher={authenticatedFetch}
           />
         ) : tab === 'home' ? (
           <HomeTab name={name} />
@@ -111,10 +114,8 @@ export function DashboardScreen({ name, userId, onSignOut }: Props) {
         <BottomNavigation
           active={tab}
           onChange={setTab}
-          organizerVisible={organizations.length > 0}
         />
       ) : null}
     </View>
   )
 }
-

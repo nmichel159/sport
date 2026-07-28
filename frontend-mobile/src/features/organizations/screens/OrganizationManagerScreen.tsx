@@ -86,16 +86,6 @@ export function OrganizationManagerScreen({
 
   return (
     <>
-      <Text style={teamStyles.sectionTitle}>ORGANIZÁCIE</Text>
-      {organizations.map((organization) => (
-        <Pressable
-          style={teamStyles.card}
-          key={organization.id}
-          onPress={() => setActive(organization)}
-        >
-          <Text style={teamStyles.title}>{organization.name}</Text>
-        </Pressable>
-      ))}
       <View style={teamStyles.form}>
         <Text style={teamStyles.title}>Nová organizácia</Text>
         <TextInput

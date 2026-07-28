@@ -28,8 +28,6 @@ async function loadCatalog<T>(name: string): Promise<T[]> {
   }
 }
 
-export const loadSchools = () => loadCatalog<School>('schools')
-export const loadDistrictCities = () => loadCatalog<DistrictCity>('district-cities')
 export const loadSports = () => loadCatalog<Sport>('sports')
 
 async function searchCatalog<T>(name: string, query: string): Promise<T[]> {

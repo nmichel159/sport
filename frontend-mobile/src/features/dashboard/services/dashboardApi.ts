@@ -5,7 +5,7 @@ import type {
   AuthenticatedFetch,
 } from '../../../types/domain'
 
-export type DashboardData = {
+type DashboardData = {
   teams: ApiTeam[]
   organizations: ApiOrganization[]
   events: ApiEvent[]
@@ -37,4 +37,3 @@ export async function loadDashboard(
 
   return { teams, organizations, events }
 }
-

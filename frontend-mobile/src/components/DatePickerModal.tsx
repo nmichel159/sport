@@ -55,7 +55,7 @@ export function DatePickerModal({
     <SystemModal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="fade"
       onRequestClose={onClose}
     >
       <View style={formStyles.modalOverlay}>
@@ -151,7 +151,7 @@ export function DatePickerModal({
                 onSelect(new Date(year, month, Math.min(day, days.length)))
               }
             >
-              <Text style={formStyles.saveDateText}>Potvrdiť</Text>
+              <Text style={formStyles.saveDateText}>OK</Text>
             </Pressable>
           </View>
         </View>

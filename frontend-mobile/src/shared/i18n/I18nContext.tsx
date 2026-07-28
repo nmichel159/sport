@@ -12,13 +12,11 @@ import {
 export type { Language, Translation } from './dictionary'
 
 type I18nContextValue = {
-  lang: Language
   setLang: (language: Language) => void
   t: Translation
 }
 
 const I18nContext = createContext<I18nContextValue>({
-  lang: 'sk',
   setLang: () => {},
   t: dictionary.sk,
 })
@@ -39,7 +37,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <I18nContext.Provider
-      value={{ lang, setLang, t: dictionary[lang] }}
+      value={{ setLang, t: dictionary[lang] }}
     >
       {children}
     </I18nContext.Provider>

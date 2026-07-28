@@ -4,9 +4,6 @@ import type { AuthenticatedFetch } from '../../types/domain'
 export type User = {
   id: string
   display_name?: string
-  nickname?: string
-  school_code?: string
-  district_city?: string
   preferred_language: 'sk' | 'en'
   onboarding_completed: boolean
 }
@@ -26,6 +23,4 @@ export type AuthContextValue = {
   signOut: () => Promise<void>
   completeOnboarding: (data: OnboardingData) => Promise<void>
   authenticatedFetch: AuthenticatedFetch
-  updateNickname: (nickname: string) => Promise<void>
 }
-

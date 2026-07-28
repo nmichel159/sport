@@ -26,7 +26,7 @@ export function OnboardingScreen(props: Props) {
   return (
     <KeyboardAvoidingView
       style={formStyles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
         contentContainerStyle={formStyles.onboardingContainer}

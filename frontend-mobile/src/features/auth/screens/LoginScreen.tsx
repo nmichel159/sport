@@ -10,7 +10,6 @@ import { useAuth } from '../context/AuthContext'
 import { GoogleLoginScreen } from './GoogleLoginScreen'
 
 type Props = {
-  lang: Language
   setLang: (language: Language) => void
   t: Translation
 }
@@ -46,4 +45,3 @@ export function LoginScreen(props: Props) {
     </View>
   )
 }
-

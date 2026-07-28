@@ -37,7 +37,6 @@ export const teamStyles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: { color: '#ffd400', fontWeight: '800' },
-  remove: { color: '#ff8f87', fontWeight: '800', marginLeft: 'auto' },
   form: {
     backgroundColor: '#17181c',
     borderWidth: 1,
@@ -82,4 +81,3 @@ export const teamStyles = StyleSheet.create({
   },
   memberAvatarText: { color: '#f3f4f6', fontWeight: '800' },
 })
-

@@ -12,7 +12,6 @@ const items: ReadonlyArray<{ key: MainTab; icon: string; label: string }> = [
 type Props = {
   active: MainTab
   onChange: (tab: MainTab) => void
-  organizerVisible?: boolean
 }
 
 export function BottomNavigation({ active, onChange }: Props) {
@@ -52,4 +51,3 @@ export function BottomNavigation({ active, onChange }: Props) {
     </View>
   )
 }
-

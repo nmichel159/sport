@@ -80,14 +80,17 @@ export const formStyles = StyleSheet.create({
   continueText: { color: '#171400', fontSize: 16, fontWeight: '800' },
   modalOverlay: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
     backgroundColor: 'rgba(0,0,0,.7)',
   },
   modalSheet: {
+    width: '100%',
+    maxWidth: 520,
     maxHeight: '85%',
     backgroundColor: '#17181c',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: 24,
     borderColor: '#2b2e34',
     borderWidth: 1,
     padding: 20,
@@ -158,4 +161,3 @@ export const formStyles = StyleSheet.create({
     right: 16,
   },
 })
-

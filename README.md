@@ -4,7 +4,7 @@ A starter stack with FastAPI/PostgreSQL API, React web client, and Expo React Na
 
 ## Architecture and stack
 
-`frontend-web` and `frontend-mobile` call FastAPI `/health` and versioned `/api/v1` endpoints. FastAPI uses SQLAlchemy 2 and Alembic with PostgreSQL. The web uses Vite, React Router, TypeScript, ESLint and Prettier; mobile uses Expo Router and TypeScript.
+`frontend-web` calls FastAPI `/health`; both frontends use versioned `/api/v1` endpoints. FastAPI uses SQLAlchemy 2 and Alembic with PostgreSQL. The web uses Vite, React Router, TypeScript, ESLint and Prettier; mobile uses Expo Router and TypeScript.
 
 ## Local setup
 

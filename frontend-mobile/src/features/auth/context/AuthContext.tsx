@@ -25,8 +25,6 @@ import {
 } from '../services/authStorage'
 import type { AuthContextValue, Session, User } from '../types'
 
-export type { User } from '../types'
-
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   loading: true,
@@ -38,7 +36,6 @@ const AuthContext = createContext<AuthContextValue>({
   authenticatedFetch: async () => {
     throw Error('AUTH_REQUIRED')
   },
-  updateNickname: async () => {},
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -148,16 +145,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return authenticatedRequest(session.access_token, path, init)
   }
 
-  const updateNickname = async (nickname: string) => {
-    const response = await authenticatedFetch('/users/me/settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nickname }),
-    })
-    if (!response.ok) throw Error('NICKNAME_FAILED')
-    await persistUser((await response.json()) as User)
-  }
-
   const signOut = async () => {
     const token = await readRefreshToken()
     if (token) await logOut(token)
@@ -176,7 +163,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signOut,
         completeOnboarding,
         authenticatedFetch,
-        updateNickname,
       }}
     >
       {children}

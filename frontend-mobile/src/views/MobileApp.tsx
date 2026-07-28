@@ -15,7 +15,7 @@ export default function MobileApp() {
     signOut,
     completeOnboarding,
   } = useAuth()
-  const { lang, setLang, t } = useI18n()
+  const { setLang, t } = useI18n()
 
   if (signingIn) return <SigningInScreen />
 
@@ -47,5 +47,5 @@ export default function MobileApp() {
     )
   }
 
-  return <LoginScreen lang={lang} setLang={setLang} t={t} />
+  return <LoginScreen setLang={setLang} t={t} />
 }

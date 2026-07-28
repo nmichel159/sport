@@ -1,6 +1,6 @@
 export type MainTab = 'home' | 'events' | 'ranking' | 'profile'
 
-export type ApiTeamMember = {
+type ApiTeamMember = {
   id: string
   nickname: string
 }
@@ -12,7 +12,7 @@ export type ApiTeam = {
   members: ApiTeamMember[]
 }
 
-export type ApiRegistration = {
+type ApiRegistration = {
   id: string
   user_id: string | null
   team_id: string | null
@@ -44,7 +44,7 @@ export type EventPayload = {
   description?: string | null
 }
 
-export type ApiOrganizationMember = {
+type ApiOrganizationMember = {
   id: string
   nickname: string
   role: string
@@ -60,12 +60,12 @@ export type ApiOrganization = {
 
 export type RankingKind = 'players' | 'teams'
 
-export type RankingSport = {
+type RankingSport = {
   code: string
   name: string
 }
 
-export type RankingItem = {
+type RankingItem = {
   rank: number
   name: string
   sport?: string

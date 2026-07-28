@@ -5,7 +5,8 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "com.nmichel.sport",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0b0c0e",
     "plugins": [
       "expo-router",
       "expo-secure-store"
@@ -21,7 +22,9 @@
     },
     "android": {
       "package": "com.nmichel.sport",
-      "softwareKeyboardLayoutMode": "pan"
+      "softwareKeyboardLayoutMode": "pan",
+      "backgroundColor": "#0b0c0e",
+      "edgeToEdgeEnabled": false
     },
     "androidNavigationBar": {
       "visible": "sticky-immersive",

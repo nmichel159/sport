@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 
 /**
  * Search-only catalog field. A value becomes valid only after selecting an
@@ -34,6 +34,18 @@ export function ValidatedCatalogInput<T>({
     }
   }
 
+  const suggestions = !selected && options.length > 0 ? (
+    <View style={styles.suggestions}>
+      {options.map((option) => <Pressable key={getKey(option)} style={styles.option} onPress={() => {
+        Keyboard.dismiss()
+        onSelect(option)
+      }}>
+        <Text style={styles.optionTitle}>{getLabel(option)}</Text>
+        <Text style={styles.optionHint}>{getHint(option)}</Text>
+      </Pressable>)}
+    </View>
+  ) : null
+
   return <View style={styles.container}>
     <TextInput
       value={selected ? getLabel(selected) : query}
@@ -43,15 +55,22 @@ export function ValidatedCatalogInput<T>({
       placeholderTextColor="#9aa0a8"
       style={styles.input}
     />
-    {!selected && options.map((option) => <Pressable key={getKey(option)} style={styles.option} onPress={() => onSelect(option)}>
-      <Text style={styles.optionTitle}>{getLabel(option)}</Text>
-      <Text style={styles.optionHint}>{getHint(option)}</Text>
-    </Pressable>)}
+    {suggestions}
   </View>
 }
 
 const styles = StyleSheet.create({
-  container: { gap: 6 },
+  container: { position: 'relative', zIndex: 10 },
+  suggestions: {
+    position: 'absolute',
+    bottom: '100%',
+    left: 0,
+    right: 0,
+    gap: 6,
+    marginBottom: 6,
+    zIndex: 20,
+    elevation: 20,
+  },
   input: { backgroundColor: '#1d1f24', borderColor: '#2b2e34', borderWidth: 1.5, borderRadius: 12, padding: 13, color: '#f3f4f6', fontSize: 16 },
   option: { backgroundColor: '#22252b', borderColor: '#343841', borderWidth: 1, borderRadius: 10, padding: 10, gap: 2 },
   optionTitle: { color: '#f3f4f6', fontSize: 13, fontWeight: '700' },

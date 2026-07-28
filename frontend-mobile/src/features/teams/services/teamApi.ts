@@ -3,12 +3,6 @@ import type {
   AuthenticatedFetch,
 } from '../../../types/domain'
 
-export async function loadMyTeams(fetcher: AuthenticatedFetch) {
-  const response = await fetcher('/teams/mine')
-  if (!response.ok) throw Error('TEAMS_LOAD_FAILED')
-  return (await response.json()) as ApiTeam[]
-}
-
 export async function createTeam(
   fetcher: AuthenticatedFetch,
   name: string,
@@ -35,4 +29,3 @@ export async function addTeamPlayer(
   if (!response.ok) throw Error('Hráča sa nepodarilo pridať.')
   return (await response.json()) as ApiTeam
 }
-

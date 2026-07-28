@@ -12,12 +12,11 @@ import { loginStyles } from '../../../styles/loginStyles'
 import { Brand } from '../components/Brand'
 
 type Props = {
-  lang: Language
   setLang: (language: Language) => void
   t: Translation
 }
 
-export function GoogleLoginScreen({ lang, setLang, t }: Props) {
+export function GoogleLoginScreen({ setLang, t }: Props) {
   const { signIn } = useAuth()
   const androidClientId =
     process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? ''
