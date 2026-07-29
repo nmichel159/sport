@@ -126,6 +126,56 @@ class OrganizationEventMatch(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class OrganizationEventGroupStage(Base):
+    __tablename__ = "organization_event_group_stages"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+    event_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organization_events.id", ondelete="CASCADE"), unique=True, index=True)
+    group_count: Mapped[int] = mapped_column(Integer)
+    advancing_count: Mapped[int] = mapped_column(Integer)
+    locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class OrganizationEventGroup(Base):
+    __tablename__ = "organization_event_groups"
+    __table_args__ = (UniqueConstraint("event_id", "position"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+    event_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organization_events.id", ondelete="CASCADE"), index=True)
+    position: Mapped[int] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(String(40))
+
+
+class OrganizationEventGroupMember(Base):
+    __tablename__ = "organization_event_group_members"
+    __table_args__ = (
+        UniqueConstraint("group_id", "seed_position"),
+        UniqueConstraint("registration_id"),
+    )
+
+    group_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organization_event_groups.id", ondelete="CASCADE"), primary_key=True)
+    registration_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organization_event_registrations.id", ondelete="CASCADE"), primary_key=True)
+    seed_position: Mapped[int] = mapped_column(Integer)
+    qualified_seed: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class OrganizationEventGroupMatch(Base):
+    __tablename__ = "organization_event_group_matches"
+    __table_args__ = (UniqueConstraint("group_id", "position"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+    group_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organization_event_groups.id", ondelete="CASCADE"), index=True)
+    position: Mapped[int] = mapped_column(Integer)
+    participant_a_registration_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organization_event_registrations.id", ondelete="CASCADE"))
+    participant_b_registration_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organization_event_registrations.id", ondelete="CASCADE"))
+    score_a: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    score_b: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    winner_registration_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("organization_event_registrations.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class AuthIdentity(Base):
     __tablename__ = "user_auth_identities"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())

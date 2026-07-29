@@ -1,3 +1,3 @@
-from app.models.user import AuthIdentity, AuthSession, Organization, OrganizationEvent, OrganizationEventMatch, OrganizationEventRegistration, OrganizationMember, Team, TeamMember, TournamentFormat, User
+from app.models.user import AuthIdentity, AuthSession, Organization, OrganizationEvent, OrganizationEventGroup, OrganizationEventGroupMatch, OrganizationEventGroupMember, OrganizationEventGroupStage, OrganizationEventMatch, OrganizationEventRegistration, OrganizationMember, Team, TeamMember, TournamentFormat, User
 
-__all__ = ["User", "AuthIdentity", "AuthSession", "Team", "TeamMember", "Organization", "OrganizationMember", "OrganizationEvent", "OrganizationEventRegistration", "OrganizationEventMatch", "TournamentFormat"]
+__all__ = ["User", "AuthIdentity", "AuthSession", "Team", "TeamMember", "Organization", "OrganizationMember", "OrganizationEvent", "OrganizationEventRegistration", "OrganizationEventMatch", "OrganizationEventGroupStage", "OrganizationEventGroup", "OrganizationEventGroupMember", "OrganizationEventGroupMatch", "TournamentFormat"]

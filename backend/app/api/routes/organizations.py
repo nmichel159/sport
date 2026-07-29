@@ -1,5 +1,6 @@
 import re
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -10,6 +11,10 @@ from app.core.security import get_current_active_user
 from app.models.user import (
     Organization,
     OrganizationEvent,
+    OrganizationEventGroup,
+    OrganizationEventGroupMatch,
+    OrganizationEventGroupMember,
+    OrganizationEventGroupStage,
     OrganizationEventMatch,
     OrganizationEventRegistration,
     OrganizationMember,
@@ -21,6 +26,12 @@ from app.schemas.organization import (
     BracketParticipantRead,
     EventBracketRead,
     EventCreate,
+    EventGroupRead,
+    EventGroupStageRead,
+    GroupMatchRead,
+    GroupParticipantRead,
+    GroupStageCreate,
+    GroupStandingRead,
     EventMatchRead,
     EventMatchScoreUpdate,
     EventRead,
@@ -32,7 +43,14 @@ from app.schemas.organization import (
     OrganizationRead,
     TournamentFormatRead,
 )
-from app.services.brackets import single_elimination_layout
+from app.services.brackets import (
+    balanced_round_robin_groups,
+    rank_group,
+    round_robin_pairs,
+    seeded_single_elimination_layout,
+    select_group_qualifiers,
+    single_elimination_layout,
+)
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 
@@ -262,6 +280,166 @@ def bracket_read(event: OrganizationEvent, db: Session) -> EventBracketRead:
     )
 
 
+def group_stage_for_event(
+    event_id: uuid.UUID, db: Session
+) -> OrganizationEventGroupStage | None:
+    return db.scalar(
+        select(OrganizationEventGroupStage).where(
+            OrganizationEventGroupStage.event_id == event_id
+        )
+    )
+
+
+def require_group_format(
+    event: OrganizationEvent, db: Session
+) -> TournamentFormat:
+    tournament_format = (
+        db.get(TournamentFormat, event.format_id) if event.format_id else None
+    )
+    if (
+        not tournament_format
+        or tournament_format.code != "GROUPS_THEN_ELIMINATION"
+    ):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "GROUPS_THEN_ELIMINATION_REQUIRED"},
+        )
+    return tournament_format
+
+
+def group_stage_read(
+    event: OrganizationEvent, db: Session
+) -> EventGroupStageRead:
+    stage = group_stage_for_event(event.id, db)
+    if not stage:
+        return EventGroupStageRead(
+            event_id=event.id,
+            generated=False,
+            locked=False,
+            locked_at=None,
+            group_count=0,
+            advancing_count=0,
+            completed_matches=0,
+            total_matches=0,
+            groups=[],
+        )
+
+    groups = list(
+        db.scalars(
+            select(OrganizationEventGroup)
+            .where(OrganizationEventGroup.event_id == event.id)
+            .order_by(OrganizationEventGroup.position)
+        ).all()
+    )
+    names = {
+        row[0].id: registration_name(row)
+        for row in registration_rows(event.id, db)
+    }
+    completed_matches = 0
+    total_matches = 0
+    group_reads: list[EventGroupRead] = []
+
+    def participant(registration_id: uuid.UUID) -> GroupParticipantRead:
+        return GroupParticipantRead(
+            registration_id=registration_id,
+            name=names.get(registration_id, "Účastník"),
+        )
+
+    for group in groups:
+        members = list(
+            db.scalars(
+                select(OrganizationEventGroupMember)
+                .where(OrganizationEventGroupMember.group_id == group.id)
+                .order_by(OrganizationEventGroupMember.seed_position)
+            ).all()
+        )
+        matches = list(
+            db.scalars(
+                select(OrganizationEventGroupMatch)
+                .where(OrganizationEventGroupMatch.group_id == group.id)
+                .order_by(OrganizationEventGroupMatch.position)
+            ).all()
+        )
+        completed = [
+            (
+                match.participant_a_registration_id,
+                match.participant_b_registration_id,
+                match.score_a,
+                match.score_b,
+            )
+            for match in matches
+            if match.score_a is not None and match.score_b is not None
+        ]
+        ranked = rank_group(
+            [member.registration_id for member in members],
+            completed,
+        )
+        member_by_registration = {
+            member.registration_id: member for member in members
+        }
+        completed_matches += len(completed)
+        total_matches += len(matches)
+        group_reads.append(
+            EventGroupRead(
+                id=group.id,
+                position=group.position,
+                name=group.name,
+                standings=[
+                    GroupStandingRead(
+                        rank=index + 1,
+                        participant=participant(standing.participant),
+                        played=standing.played,
+                        wins=standing.wins,
+                        draws=standing.draws,
+                        losses=standing.losses,
+                        score_for=standing.score_for,
+                        score_against=standing.score_against,
+                        score_difference=standing.score_difference,
+                        points=standing.points,
+                        qualified=(
+                            member_by_registration[
+                                standing.participant
+                            ].qualified_seed
+                            is not None
+                        ),
+                        qualified_seed=member_by_registration[
+                            standing.participant
+                        ].qualified_seed,
+                    )
+                    for index, standing in enumerate(ranked)
+                ],
+                matches=[
+                    GroupMatchRead(
+                        id=match.id,
+                        position=match.position,
+                        participant_a=participant(
+                            match.participant_a_registration_id
+                        ),
+                        participant_b=participant(
+                            match.participant_b_registration_id
+                        ),
+                        score_a=match.score_a,
+                        score_b=match.score_b,
+                        winner_registration_id=match.winner_registration_id,
+                    )
+                    for match in matches
+                ],
+            )
+        )
+
+    return EventGroupStageRead(
+        event_id=event.id,
+        generated=True,
+        locked=stage.locked_at is not None,
+        locked_at=stage.locked_at,
+        group_count=stage.group_count,
+        advancing_count=stage.advancing_count,
+        completed_matches=completed_matches,
+        total_matches=total_matches,
+        groups=group_reads,
+    )
+
+
 def next_match(
     match: OrganizationEventMatch, db: Session
 ) -> OrganizationEventMatch | None:
@@ -301,6 +479,52 @@ def clear_descendant_results(
         following.participant_a_registration_id = None
     else:
         following.participant_b_registration_id = None
+
+
+def persist_event_bracket(
+    event: OrganizationEvent,
+    bracket_size: int,
+    round_count: int,
+    first_round_pairs: list[
+        tuple[
+            OrganizationEventRegistration,
+            OrganizationEventRegistration | None,
+        ]
+    ],
+    db: Session,
+) -> None:
+    matches: dict[tuple[int, int], OrganizationEventMatch] = {}
+    for round_number in range(1, round_count + 1):
+        match_count = bracket_size // (2**round_number)
+        for position in range(match_count):
+            pair = (
+                first_round_pairs[position]
+                if round_number == 1
+                else None
+            )
+            match = OrganizationEventMatch(
+                event_id=event.id,
+                round_number=round_number,
+                position=position,
+                participant_a_registration_id=pair[0].id if pair else None,
+                participant_b_registration_id=(
+                    pair[1].id if pair and pair[1] else None
+                ),
+            )
+            db.add(match)
+            matches[(round_number, position)] = match
+    db.flush()
+
+    for position, pair in enumerate(first_round_pairs):
+        if pair[1] is None:
+            match = matches[(1, position)]
+            match.winner_registration_id = pair[0].id
+            if round_count > 1:
+                following = matches[(2, position // 2)]
+                if position % 2 == 0:
+                    following.participant_a_registration_id = pair[0].id
+                else:
+                    following.participant_b_registration_id = pair[0].id
 
 
 @router.get("/mine", response_model=list[OrganizationRead])
@@ -372,6 +596,20 @@ def read_participant_event_bracket(
     return bracket_read(event_bracket_viewer(event_id, user, db), db)
 
 
+@router.get(
+    "/events/{event_id}/group-stage",
+    response_model=EventGroupStageRead,
+)
+def read_participant_event_group_stage(
+    event_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    event = event_bracket_viewer(event_id, user, db)
+    require_group_format(event, db)
+    return group_stage_read(event, db)
+
+
 @router.post(
     "/events/{event_id}/registrations",
     response_model=EventRead,
@@ -396,6 +634,11 @@ def register_for_event(
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             detail={"code": "EVENT_BRACKET_ALREADY_GENERATED"},
+        )
+    if group_stage_for_event(event.id, db):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail={"code": "EVENT_GROUP_STAGE_ALREADY_GENERATED"},
         )
     if event.participation_type == "TEAM":
         if not payload.team_id:
@@ -605,17 +848,26 @@ def update_event(
             detail={"code": "INVALID_EVENT_DATA"},
         )
     tournament_format = selected_format(payload.format_id, db)
-    if (
-        event.format_id != tournament_format.id
-        and db.scalar(
+    draw_generated = bool(
+        db.scalar(
             select(OrganizationEventMatch.id).where(
                 OrganizationEventMatch.event_id == event.id
             )
         )
-    ):
+        or group_stage_for_event(event.id, db)
+    )
+    if draw_generated and event.format_id != tournament_format.id:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             detail={"code": "EVENT_FORMAT_LOCKED"},
+        )
+    if (
+        draw_generated
+        and event.participation_type != payload.participation_type
+    ):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail={"code": "EVENT_PARTICIPATION_TYPE_LOCKED"},
         )
     event.name = name
     event.sport = sport
@@ -641,6 +893,285 @@ def read_event_bracket(
 ):
     _, event = manageable_event(organization_id, event_id, user, db)
     return bracket_read(event, db)
+
+
+@router.get(
+    "/{organization_id}/events/{event_id}/group-stage",
+    response_model=EventGroupStageRead,
+)
+def read_event_group_stage(
+    organization_id: uuid.UUID,
+    event_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    _, event = manageable_event(organization_id, event_id, user, db)
+    require_group_format(event, db)
+    return group_stage_read(event, db)
+
+
+@router.post(
+    "/{organization_id}/events/{event_id}/group-stage/generate",
+    response_model=EventGroupStageRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def generate_event_group_stage(
+    organization_id: uuid.UUID,
+    event_id: uuid.UUID,
+    payload: GroupStageCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    _, event = manageable_event(organization_id, event_id, user, db)
+    require_group_format(event, db)
+    if group_stage_for_event(event.id, db):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail={"code": "GROUP_STAGE_ALREADY_GENERATED"},
+        )
+    if db.scalar(
+        select(OrganizationEventMatch.id).where(
+            OrganizationEventMatch.event_id == event.id
+        )
+    ):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail={"code": "BRACKET_ALREADY_GENERATED"},
+        )
+
+    registrations = list(
+        db.scalars(
+            select(OrganizationEventRegistration)
+            .where(OrganizationEventRegistration.event_id == event.id)
+            .order_by(
+                OrganizationEventRegistration.registered_at,
+                OrganizationEventRegistration.id,
+            )
+        ).all()
+    )
+    if payload.advancing_count > len(registrations):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "TOO_MANY_ADVANCING_PARTICIPANTS"},
+        )
+    if len(registrations) % payload.group_count:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "UNEQUAL_GROUP_SIZES"},
+        )
+    if len(registrations) // payload.group_count < 2:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "NOT_ENOUGH_PARTICIPANTS_PER_GROUP"},
+        )
+
+    grouped_registrations = balanced_round_robin_groups(
+        registrations, payload.group_count, event.id.int
+    )
+    stage = OrganizationEventGroupStage(
+        event_id=event.id,
+        group_count=payload.group_count,
+        advancing_count=payload.advancing_count,
+    )
+    db.add(stage)
+    db.flush()
+
+    for group_position, grouped in enumerate(grouped_registrations):
+        suffix = (
+            chr(ord("A") + group_position)
+            if group_position < 26
+            else str(group_position + 1)
+        )
+        group = OrganizationEventGroup(
+            event_id=event.id,
+            position=group_position,
+            name=f"Skupina {suffix}",
+        )
+        db.add(group)
+        db.flush()
+        for seed_position, registration in enumerate(grouped):
+            db.add(
+                OrganizationEventGroupMember(
+                    group_id=group.id,
+                    registration_id=registration.id,
+                    seed_position=seed_position,
+                )
+            )
+        for match_position, pair in enumerate(round_robin_pairs(grouped)):
+            db.add(
+                OrganizationEventGroupMatch(
+                    group_id=group.id,
+                    position=match_position,
+                    participant_a_registration_id=pair[0].id,
+                    participant_b_registration_id=pair[1].id,
+                )
+            )
+
+    db.commit()
+    return group_stage_read(event, db)
+
+
+@router.put(
+    "/{organization_id}/events/{event_id}/group-stage/matches/{match_id}",
+    response_model=EventGroupStageRead,
+)
+def update_event_group_match_score(
+    organization_id: uuid.UUID,
+    event_id: uuid.UUID,
+    match_id: uuid.UUID,
+    payload: EventMatchScoreUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    _, event = manageable_event(organization_id, event_id, user, db)
+    require_group_format(event, db)
+    stage = group_stage_for_event(event.id, db)
+    match = db.get(OrganizationEventGroupMatch, match_id)
+    group = db.get(OrganizationEventGroup, match.group_id) if match else None
+    if not stage or not match or not group or group.event_id != event.id:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={"code": "GROUP_MATCH_NOT_FOUND"},
+        )
+    if stage.locked_at is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail={"code": "GROUP_STAGE_LOCKED"},
+        )
+
+    match.score_a = payload.score_a
+    match.score_b = payload.score_b
+    match.winner_registration_id = (
+        match.participant_a_registration_id
+        if payload.score_a > payload.score_b
+        else (
+            match.participant_b_registration_id
+            if payload.score_b > payload.score_a
+            else None
+        )
+    )
+    db.commit()
+    return group_stage_read(event, db)
+
+
+@router.post(
+    "/{organization_id}/events/{event_id}/group-stage/finalize",
+    response_model=EventGroupStageRead,
+)
+def finalize_event_group_stage(
+    organization_id: uuid.UUID,
+    event_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    _, event = manageable_event(organization_id, event_id, user, db)
+    require_group_format(event, db)
+    stage = group_stage_for_event(event.id, db)
+    if not stage:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={"code": "GROUP_STAGE_NOT_GENERATED"},
+        )
+    if stage.locked_at is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail={"code": "GROUP_STAGE_LOCKED"},
+        )
+    if db.scalar(
+        select(OrganizationEventMatch.id).where(
+            OrganizationEventMatch.event_id == event.id
+        )
+    ):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail={"code": "BRACKET_ALREADY_GENERATED"},
+        )
+
+    groups = list(
+        db.scalars(
+            select(OrganizationEventGroup)
+            .where(OrganizationEventGroup.event_id == event.id)
+            .order_by(OrganizationEventGroup.position)
+        ).all()
+    )
+    ranked_groups = []
+    all_members: list[OrganizationEventGroupMember] = []
+    for group in groups:
+        members = list(
+            db.scalars(
+                select(OrganizationEventGroupMember)
+                .where(OrganizationEventGroupMember.group_id == group.id)
+                .order_by(OrganizationEventGroupMember.seed_position)
+            ).all()
+        )
+        matches = list(
+            db.scalars(
+                select(OrganizationEventGroupMatch)
+                .where(OrganizationEventGroupMatch.group_id == group.id)
+                .order_by(OrganizationEventGroupMatch.position)
+            ).all()
+        )
+        if any(
+            match.score_a is None or match.score_b is None
+            for match in matches
+        ):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail={"code": "GROUP_RESULTS_INCOMPLETE"},
+            )
+        all_members.extend(members)
+        ranked_groups.append(
+            rank_group(
+                [member.registration_id for member in members],
+                [
+                    (
+                        match.participant_a_registration_id,
+                        match.participant_b_registration_id,
+                        match.score_a,
+                        match.score_b,
+                    )
+                    for match in matches
+                ],
+            )
+        )
+
+    qualifiers = select_group_qualifiers(
+        ranked_groups, stage.advancing_count
+    )
+    qualifier_ids = [
+        qualifier.participant for qualifier in qualifiers
+    ]
+    qualification_seed = {
+        registration_id: index + 1
+        for index, registration_id in enumerate(qualifier_ids)
+    }
+    for member in all_members:
+        member.qualified_seed = qualification_seed.get(member.registration_id)
+
+    registrations = {
+        registration.id: registration
+        for registration in db.scalars(
+            select(OrganizationEventRegistration).where(
+                OrganizationEventRegistration.event_id == event.id
+            )
+        ).all()
+    }
+    seeded_registrations = [
+        registrations[registration_id] for registration_id in qualifier_ids
+    ]
+    bracket_size, round_count, first_round_pairs = (
+        seeded_single_elimination_layout(seeded_registrations)
+    )
+    persist_event_bracket(
+        event,
+        bracket_size,
+        round_count,
+        first_round_pairs,
+        db,
+    )
+    stage.locked_at = datetime.now(timezone.utc)
+    db.commit()
+    return group_stage_read(event, db)
 
 
 @router.post(
@@ -697,40 +1228,13 @@ def generate_event_bracket(
     bracket_size, round_count, first_round_pairs = (
         single_elimination_layout(registrations, event.id.int)
     )
-
-    matches: dict[tuple[int, int], OrganizationEventMatch] = {}
-    for round_number in range(1, round_count + 1):
-        match_count = bracket_size // (2**round_number)
-        for position in range(match_count):
-            pair = (
-                first_round_pairs[position]
-                if round_number == 1
-                else None
-            )
-            match = OrganizationEventMatch(
-                event_id=event.id,
-                round_number=round_number,
-                position=position,
-                participant_a_registration_id=pair[0].id if pair else None,
-                participant_b_registration_id=(
-                    pair[1].id if pair and pair[1] else None
-                ),
-            )
-            db.add(match)
-            matches[(round_number, position)] = match
-    db.flush()
-
-    for position, pair in enumerate(first_round_pairs):
-        if pair[1] is None:
-            match = matches[(1, position)]
-            match.winner_registration_id = pair[0].id
-            if round_count > 1:
-                following = matches[(2, position // 2)]
-                if position % 2 == 0:
-                    following.participant_a_registration_id = pair[0].id
-                else:
-                    following.participant_b_registration_id = pair[0].id
-
+    persist_event_bracket(
+        event,
+        bracket_size,
+        round_count,
+        first_round_pairs,
+        db,
+    )
     db.commit()
     return bracket_read(event, db)
 

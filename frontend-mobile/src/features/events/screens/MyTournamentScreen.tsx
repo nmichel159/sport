@@ -13,9 +13,14 @@ import type {
   ApiEvent,
   BracketMatch,
   EventBracket,
+  EventGroupStage,
   AuthenticatedFetch,
 } from '../../../types/domain'
-import { requestParticipantBracket } from '../../organizations/services/organizationApi'
+import { GroupStageBoard } from '../../organizations/components/GroupStageBoard'
+import {
+  requestParticipantBracket,
+  requestParticipantGroupStage,
+} from '../../organizations/services/organizationApi'
 
 type Props = {
   event: ApiEvent
@@ -23,6 +28,7 @@ type Props = {
   ownedTeamIds: Set<string>
   fetcher: AuthenticatedFetch
   onBack: () => void
+  backLabel?: string
 }
 
 function roundTitle(round: number, total: number) {
@@ -39,12 +45,13 @@ function participantName(match: BracketMatch, side: 'a' | 'b') {
   return match.is_bye ? 'BYE · voľný postup' : 'Čaká na víťaza'
 }
 
-export function MyTournamentScreen({
+function SingleParticipantTournamentScreen({
   event,
   userId,
   ownedTeamIds,
   fetcher,
   onBack,
+  backLabel = 'Späť na detail eventu',
 }: Props) {
   const [bracket, setBracket] = useState<EventBracket | null>(null)
   const [loading, setLoading] = useState(true)
@@ -125,7 +132,7 @@ export function MyTournamentScreen({
   return (
     <View style={bracketStyles.screen}>
       <Pressable onPress={onBack}>
-        <Text style={teamStyles.back}>← Späť na detail eventu</Text>
+        <Text style={teamStyles.back}>← {backLabel}</Text>
       </Pressable>
       <View style={bracketStyles.header}>
         <Text style={bracketStyles.eyebrow}>MÔJ PRIEBEH TURNAJA</Text>
@@ -228,5 +235,139 @@ export function MyTournamentScreen({
       )}
       {error ? <Text style={formStyles.error}>{error}</Text> : null}
     </View>
+  )
+}
+
+function GroupParticipantTournamentScreen({
+  event,
+  userId,
+  ownedTeamIds,
+  fetcher,
+  onBack,
+}: Props) {
+  const [stage, setStage] = useState<EventGroupStage | null>(null)
+  const [view, setView] = useState<'groups' | 'bracket'>('groups')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    void requestParticipantGroupStage(fetcher, event.id)
+      .then((result) => {
+        if (active) setStage(result)
+      })
+      .catch(() => {
+        if (active) setError('Skupinovú časť sa nepodarilo načítať.')
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [event.id, fetcher])
+
+  if (view === 'bracket') {
+    return (
+      <SingleParticipantTournamentScreen
+        event={event}
+        userId={userId}
+        ownedTeamIds={ownedTeamIds}
+        fetcher={fetcher}
+        onBack={() => setView('groups')}
+        backLabel="Späť na výsledky skupín"
+      />
+    )
+  }
+
+  return (
+    <View style={bracketStyles.screen}>
+      <Pressable onPress={onBack}>
+        <Text style={teamStyles.back}>← Späť na detail eventu</Text>
+      </Pressable>
+      <View style={bracketStyles.header}>
+        <Text style={bracketStyles.eyebrow}>SKUPINY + PAVÚK</Text>
+        <Text style={bracketStyles.heading}>{event.name}</Text>
+        <Text style={teamStyles.muted}>
+          Výsledky zapisuje organizátor. Skupinovú fázu si môžeš kedykoľvek
+          pozrieť.
+        </Text>
+        {stage?.locked ? (
+          <Text style={bracketStyles.lockedBadge}>SKUPINY UZAVRETÉ</Text>
+        ) : null}
+      </View>
+
+      {stage?.locked ? (
+        <View style={bracketStyles.phaseTabs}>
+          <Pressable
+            style={[
+              bracketStyles.phaseTab,
+              bracketStyles.phaseTabActive,
+            ]}
+            onPress={() => setView('groups')}
+          >
+            <Text
+              style={[
+                bracketStyles.phaseTabText,
+                bracketStyles.phaseTabTextActive,
+              ]}
+            >
+              1. Skupiny
+            </Text>
+          </Pressable>
+          <Pressable
+            style={bracketStyles.phaseTab}
+            onPress={() => setView('bracket')}
+          >
+            <Text style={bracketStyles.phaseTabText}>2. Pavúk</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {loading ? (
+        <ActivityIndicator color="#ffd400" size="large" />
+      ) : !stage?.generated ? (
+        <View style={bracketStyles.empty}>
+          <Text style={bracketStyles.emptyIcon}>⌘</Text>
+          <Text style={teamStyles.title}>Skupiny sa ešte pripravujú</Text>
+          <Text style={bracketStyles.centeredHint}>
+            Organizátor zatiaľ nevytvoril rozdelenie do skupín.
+          </Text>
+        </View>
+      ) : (
+        <>
+          <View style={bracketStyles.progressCard}>
+            <Text style={bracketStyles.progressTitle}>
+              {stage.locked
+                ? 'Konečné výsledky skupín'
+                : 'Skupinová fáza prebieha'}
+            </Text>
+            <Text style={bracketStyles.progressText}>
+              {stage.completed_matches} / {stage.total_matches} výsledkov
+            </Text>
+          </View>
+          <GroupStageBoard stage={stage} />
+          {stage.locked ? (
+            <Pressable
+              style={teamStyles.primary}
+              onPress={() => setView('bracket')}
+            >
+              <Text style={teamStyles.primaryText}>
+                Zobraziť vyraďovací pavúk
+              </Text>
+            </Pressable>
+          ) : null}
+        </>
+      )}
+      {error ? <Text style={formStyles.error}>{error}</Text> : null}
+    </View>
+  )
+}
+
+export function MyTournamentScreen(props: Props) {
+  return props.event.format_code === 'GROUPS_THEN_ELIMINATION' ? (
+    <GroupParticipantTournamentScreen {...props} />
+  ) : (
+    <SingleParticipantTournamentScreen {...props} />
   )
 }

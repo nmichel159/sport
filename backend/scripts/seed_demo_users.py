@@ -4,7 +4,7 @@ Run inside the backend container with: ``python scripts/seed_demo_users.py``.
 They are real user rows, so their unique nicknames can immediately be used when
 adding players to a team.  The script never changes an existing account.
 """
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 import sys
 
@@ -15,7 +15,29 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from sqlalchemy import select, text
 
 from app.core.database import SessionLocal
-from app.models.user import AuthIdentity, Organization, OrganizationEvent, OrganizationEventRegistration, OrganizationMember, Team, TeamMember, TournamentFormat, User
+from app.models.user import (
+    AuthIdentity,
+    Organization,
+    OrganizationEvent,
+    OrganizationEventGroup,
+    OrganizationEventGroupMatch,
+    OrganizationEventGroupMember,
+    OrganizationEventGroupStage,
+    OrganizationEventMatch,
+    OrganizationEventRegistration,
+    OrganizationMember,
+    Team,
+    TeamMember,
+    TournamentFormat,
+    User,
+)
+from app.services.brackets import (
+    balanced_round_robin_groups,
+    rank_group,
+    round_robin_pairs,
+    seeded_single_elimination_layout,
+    select_group_qualifiers,
+)
 from app.services.catalogs import get_catalog
 
 
@@ -28,13 +50,205 @@ PLAYERS = [
     ("sara.kralova@example.test", "sara_ball", "Sára", "Kráľová", date(2007, 1, 19), "female", "Nitra"),
     ("jakub.varga@example.test", "jako_33", "Jakub", "Varga", date(2005, 6, 8), "male", "Prešov"),
     ("lea.malikova@example.test", "lea_sport", "Lea", "Malíková", date(2006, 9, 30), "female", "Trnava"),
+    ("tomas.benes@example.test", "tomas_goal", "Tomáš", "Beneš", date(2004, 4, 11), "male", "Bratislava"),
+    ("ema.sedlakova@example.test", "ema_play", "Ema", "Sedláková", date(2006, 2, 21), "female", "Košice"),
+    ("michal.urban@example.test", "miso_fast", "Michal", "Urban", date(2005, 10, 6), "male", "Žilina"),
+    ("zuzana.blahova@example.test", "zuzka_team", "Zuzana", "Blahová", date(2007, 7, 17), "female", "Nitra"),
 ]
 
 NORO_GOOGLE_SUBJECT = "112593596799709738455"
+NORO_GROUPS_EVENT_NAME = "Demo – skupiny + pavúk – 12 hráčov"
 
 
 def school_for_city(schools: list[dict[str, object]], city: str) -> str:
     return next(str(school["code"]) for school in schools if city.casefold() in str(school["municipality"]).casefold())
+
+
+def create_persisted_bracket(
+    db,
+    event: OrganizationEvent,
+    registrations: list[OrganizationEventRegistration],
+) -> None:
+    bracket_size, round_count, first_round_pairs = (
+        seeded_single_elimination_layout(registrations)
+    )
+    matches: dict[tuple[int, int], OrganizationEventMatch] = {}
+    for round_number in range(1, round_count + 1):
+        match_count = bracket_size // (2**round_number)
+        for position in range(match_count):
+            pair = (
+                first_round_pairs[position]
+                if round_number == 1
+                else None
+            )
+            match = OrganizationEventMatch(
+                event_id=event.id,
+                round_number=round_number,
+                position=position,
+                participant_a_registration_id=pair[0].id if pair else None,
+                participant_b_registration_id=(
+                    pair[1].id if pair and pair[1] else None
+                ),
+            )
+            db.add(match)
+            matches[(round_number, position)] = match
+    db.flush()
+
+    for position, pair in enumerate(first_round_pairs):
+        if pair[1] is None:
+            match = matches[(1, position)]
+            match.winner_registration_id = pair[0].id
+            if round_count > 1:
+                following = matches[(2, position // 2)]
+                if position % 2 == 0:
+                    following.participant_a_registration_id = pair[0].id
+                else:
+                    following.participant_b_registration_id = pair[0].id
+
+
+def seed_noro_groups_tournament(
+    db,
+    noro: User,
+    users: dict[str, User],
+    organization: Organization,
+    tournament_format: TournamentFormat,
+) -> OrganizationEvent:
+    event = db.scalar(
+        select(OrganizationEvent).where(
+            OrganizationEvent.organization_id == organization.id,
+            OrganizationEvent.name == NORO_GROUPS_EVENT_NAME,
+        )
+    )
+    if not event:
+        event = OrganizationEvent(
+            organization_id=organization.id,
+            created_by_user_id=noro.id,
+            name=NORO_GROUPS_EVENT_NAME,
+            sport="Basketbal",
+            participation_type="INDIVIDUAL",
+            format_id=tournament_format.id,
+            event_date=date(2026, 8, 22),
+            location="Bratislava – testovacia hala",
+            description=(
+                "Hotová ukážka dvojfázového turnaja: 3 skupiny po 4 "
+                "hráčoch, odohrané skupiny a 8 postupujúcich v pavúku."
+            ),
+            fee=0,
+        )
+        db.add(event)
+        db.flush()
+    else:
+        event.format_id = tournament_format.id
+
+    registrations: list[OrganizationEventRegistration] = []
+    for email, *_ in PLAYERS:
+        registration = db.scalar(
+            select(OrganizationEventRegistration).where(
+                OrganizationEventRegistration.event_id == event.id,
+                OrganizationEventRegistration.user_id == users[email].id,
+            )
+        )
+        if not registration:
+            registration = OrganizationEventRegistration(
+                event_id=event.id,
+                user_id=users[email].id,
+            )
+            db.add(registration)
+            db.flush()
+        registrations.append(registration)
+
+    existing_stage = db.scalar(
+        select(OrganizationEventGroupStage).where(
+            OrganizationEventGroupStage.event_id == event.id
+        )
+    )
+    if existing_stage:
+        return event
+
+    grouped = balanced_round_robin_groups(
+        registrations,
+        group_count=3,
+        seed=event.id.int,
+    )
+    stage = OrganizationEventGroupStage(
+        event_id=event.id,
+        group_count=3,
+        advancing_count=8,
+        locked_at=datetime(2026, 7, 29, 12, 0, tzinfo=timezone.utc),
+    )
+    db.add(stage)
+    db.flush()
+
+    ranked_groups = []
+    members: list[OrganizationEventGroupMember] = []
+    for group_position, group_registrations in enumerate(grouped):
+        group = OrganizationEventGroup(
+            event_id=event.id,
+            position=group_position,
+            name=f"Skupina {chr(ord('A') + group_position)}",
+        )
+        db.add(group)
+        db.flush()
+
+        for seed_position, registration in enumerate(group_registrations):
+            member = OrganizationEventGroupMember(
+                group_id=group.id,
+                registration_id=registration.id,
+                seed_position=seed_position,
+            )
+            db.add(member)
+            members.append(member)
+
+        results = []
+        for match_position, pair in enumerate(
+            round_robin_pairs(group_registrations)
+        ):
+            score_a = 1 + ((match_position + group_position) % 4)
+            score_b = (match_position * 2 + group_position) % 3
+            winner_id = (
+                pair[0].id
+                if score_a > score_b
+                else pair[1].id if score_b > score_a else None
+            )
+            db.add(
+                OrganizationEventGroupMatch(
+                    group_id=group.id,
+                    position=match_position,
+                    participant_a_registration_id=pair[0].id,
+                    participant_b_registration_id=pair[1].id,
+                    score_a=score_a,
+                    score_b=score_b,
+                    winner_registration_id=winner_id,
+                )
+            )
+            results.append((pair[0].id, pair[1].id, score_a, score_b))
+        ranked_groups.append(
+            rank_group(
+                [registration.id for registration in group_registrations],
+                results,
+            )
+        )
+
+    qualifiers = select_group_qualifiers(ranked_groups, advancing_count=8)
+    qualifier_seed = {
+        standing.participant: index + 1
+        for index, standing in enumerate(qualifiers)
+    }
+    for member in members:
+        member.qualified_seed = qualifier_seed.get(member.registration_id)
+
+    registration_by_id = {
+        registration.id: registration for registration in registrations
+    }
+    create_persisted_bracket(
+        db,
+        event,
+        [
+            registration_by_id[standing.participant]
+            for standing in qualifiers
+        ],
+    )
+    return event
 
 
 def main() -> None:
@@ -85,6 +299,16 @@ def main() -> None:
         single_elimination = db.scalar(select(TournamentFormat).where(TournamentFormat.code == "SINGLE_ELIMINATION", TournamentFormat.is_active.is_(True)))
         if not single_elimination:
             raise RuntimeError("The SINGLE_ELIMINATION tournament format is missing.")
+        groups_then_elimination = db.scalar(
+            select(TournamentFormat).where(
+                TournamentFormat.code == "GROUPS_THEN_ELIMINATION",
+                TournamentFormat.is_active.is_(True),
+            )
+        )
+        if not groups_then_elimination:
+            raise RuntimeError(
+                "The GROUPS_THEN_ELIMINATION tournament format is missing."
+            )
         noro_organization = db.scalar(select(Organization).where(Organization.slug == "noro-testovaci-pavuk-20260728"))
         if not noro_organization:
             noro_organization = Organization(name="Noro – testovací pavúk", slug="noro-testovaci-pavuk-20260728", owner_user_id=noro.id)
@@ -102,6 +326,14 @@ def main() -> None:
         for email in ("adam.kovac@example.test", "nina.horvathova@example.test", "matej.novak@example.test", "sara.kralova@example.test", "jakub.varga@example.test"):
             if not db.scalar(select(OrganizationEventRegistration).where(OrganizationEventRegistration.event_id == noro_event.id, OrganizationEventRegistration.user_id == users[email].id)):
                 db.add(OrganizationEventRegistration(event_id=noro_event.id, user_id=users[email].id))
+
+        seed_noro_groups_tournament(
+            db,
+            noro,
+            users,
+            noro_organization,
+            groups_then_elimination,
+        )
 
         for code, name in (("basketball", "Basketbal"), ("football", "Futbal"), ("floorball", "Florbal")):
             db.execute(text("INSERT INTO sports (code, name) VALUES (:code, :name) ON CONFLICT (code) DO NOTHING"), {"code": code, "name": name})
@@ -121,7 +353,10 @@ def main() -> None:
             for code, xp in zip(("basketball", "football", "floorball"), values):
                 db.execute(text("INSERT INTO player_sport_xp (user_id, sport_id, xp) VALUES (:user_id, :sport_id, :xp) ON CONFLICT (user_id, sport_id) DO UPDATE SET xp=EXCLUDED.xp"), {"user_id": users[email].id, "sport_id": sport_ids[code], "xp": xp})
         db.commit()
-        print(f"Created {added} demo players, Sára's organization, and Noro's five-player bracket event.")
+        print(
+            f"Created {added} demo players, Sára's organization, Noro's "
+            "five-player bracket, and Noro's 12-player groups tournament."
+        )
     finally:
         db.close()
 

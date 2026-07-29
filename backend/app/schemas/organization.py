@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from uuid import UUID
 
 from decimal import Decimal
@@ -91,6 +91,61 @@ class EventBracketRead(BaseModel):
 class EventMatchScoreUpdate(BaseModel):
     score_a: int = Field(ge=0)
     score_b: int = Field(ge=0)
+
+
+class GroupStageCreate(BaseModel):
+    group_count: int = Field(ge=1)
+    advancing_count: int = Field(ge=2)
+
+
+class GroupParticipantRead(BaseModel):
+    registration_id: UUID
+    name: str
+
+
+class GroupStandingRead(BaseModel):
+    rank: int
+    participant: GroupParticipantRead
+    played: int
+    wins: int
+    draws: int
+    losses: int
+    score_for: int
+    score_against: int
+    score_difference: int
+    points: int
+    qualified: bool
+    qualified_seed: int | None
+
+
+class GroupMatchRead(BaseModel):
+    id: UUID
+    position: int
+    participant_a: GroupParticipantRead
+    participant_b: GroupParticipantRead
+    score_a: int | None
+    score_b: int | None
+    winner_registration_id: UUID | None
+
+
+class EventGroupRead(BaseModel):
+    id: UUID
+    position: int
+    name: str
+    standings: list[GroupStandingRead]
+    matches: list[GroupMatchRead]
+
+
+class EventGroupStageRead(BaseModel):
+    event_id: UUID
+    generated: bool
+    locked: bool
+    locked_at: datetime | None
+    group_count: int
+    advancing_count: int
+    completed_matches: int
+    total_matches: int
+    groups: list[EventGroupRead]
 
 
 class OrganizationRead(BaseModel):

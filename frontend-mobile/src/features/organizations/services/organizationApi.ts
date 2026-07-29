@@ -2,6 +2,7 @@ import type {
   ApiOrganization,
   AuthenticatedFetch,
   EventBracket,
+  EventGroupStage,
   TournamentFormat,
 } from '../../../types/domain'
 
@@ -61,4 +62,38 @@ export async function requestParticipantBracket(
   const response = await fetcher(`/organizations/events/${eventId}/bracket`)
   if (!response.ok) throw Error('PARTICIPANT_BRACKET_REQUEST_FAILED')
   return (await response.json()) as EventBracket
+}
+
+export async function requestEventGroupStage(
+  fetcher: AuthenticatedFetch,
+  organizationId: string,
+  eventId: string,
+  method = 'GET',
+  suffix = '',
+  body?: object,
+): Promise<EventGroupStage> {
+  const response = await fetcher(
+    `/organizations/${organizationId}/events/${eventId}/group-stage${suffix}`,
+    {
+      method,
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    },
+  )
+  if (!response.ok) {
+    const detail = (await response.json().catch(() => null)) as {
+      detail?: { code?: string }
+    } | null
+    throw Error(detail?.detail?.code ?? 'EVENT_GROUP_STAGE_REQUEST_FAILED')
+  }
+  return (await response.json()) as EventGroupStage
+}
+
+export async function requestParticipantGroupStage(
+  fetcher: AuthenticatedFetch,
+  eventId: string,
+): Promise<EventGroupStage> {
+  const response = await fetcher(`/organizations/events/${eventId}/group-stage`)
+  if (!response.ok) throw Error('PARTICIPANT_GROUP_STAGE_REQUEST_FAILED')
+  return (await response.json()) as EventGroupStage
 }

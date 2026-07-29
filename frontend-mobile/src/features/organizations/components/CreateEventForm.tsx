@@ -104,7 +104,9 @@ export function CreateEventForm({
                 >
                   {item.code === 'SINGLE_ELIMINATION'
                     ? 'Pavúk'
-                    : item.name}
+                    : item.code === 'GROUPS_THEN_ELIMINATION'
+                      ? 'Skupiny + pavúk'
+                      : item.name}
                 </Text>
               </Pressable>
             )

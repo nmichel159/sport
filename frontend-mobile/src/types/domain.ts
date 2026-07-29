@@ -117,3 +117,53 @@ export type EventBracket = {
   round_count: number
   matches: BracketMatch[]
 }
+
+export type GroupParticipant = {
+  registration_id: string
+  name: string
+}
+
+export type GroupStanding = {
+  rank: number
+  participant: GroupParticipant
+  played: number
+  wins: number
+  draws: number
+  losses: number
+  score_for: number
+  score_against: number
+  score_difference: number
+  points: number
+  qualified: boolean
+  qualified_seed: number | null
+}
+
+export type GroupMatch = {
+  id: string
+  position: number
+  participant_a: GroupParticipant
+  participant_b: GroupParticipant
+  score_a: number | null
+  score_b: number | null
+  winner_registration_id: string | null
+}
+
+export type EventGroup = {
+  id: string
+  position: number
+  name: string
+  standings: GroupStanding[]
+  matches: GroupMatch[]
+}
+
+export type EventGroupStage = {
+  event_id: string
+  generated: boolean
+  locked: boolean
+  locked_at: string | null
+  group_count: number
+  advancing_count: number
+  completed_matches: number
+  total_matches: number
+  groups: EventGroup[]
+}
