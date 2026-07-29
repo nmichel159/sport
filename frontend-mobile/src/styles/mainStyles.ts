@@ -87,16 +87,23 @@ export const mainStyles = StyleSheet.create({
   },
   tabItem: { width: 70, alignItems: 'center', gap: 2 },
   tabIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#30333a',
   },
-  tabIconActive: { backgroundColor: '#ffd400' },
+  tabIconActive: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: '#ffd400',
+  },
   tabIconText: { color: '#7d818a', fontSize: 20 },
   tabIconTextActive: { color: '#171400' },
   tabLabel: { color: '#7d818a', fontSize: 10, fontWeight: '700' },
   tabLabelActive: { color: '#ffd400' },
 })
-

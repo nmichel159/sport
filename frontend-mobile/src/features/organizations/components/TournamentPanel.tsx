@@ -10,6 +10,7 @@ import { ZoomableBracket } from '../../../components/ZoomableBracket'
 import { bracketStyles } from '../../../styles/bracketStyles'
 import { formStyles } from '../../../styles/formStyles'
 import { teamStyles } from '../../../styles/teamStyles'
+import { useAccentStyles } from '../../../theme/useAccentStyles'
 import type {
   ApiEvent,
   AuthenticatedFetch,
@@ -62,6 +63,7 @@ export function TournamentPanel({
   fetcher,
   onBack,
 }: Props) {
+  const accent = useAccentStyles()
   const [bracket, setBracket] = useState<EventBracket | null>(null)
   const [drafts, setDrafts] = useState<Record<string, ScoreDraft>>({})
   const [loading, setLoading] = useState(true)
@@ -208,7 +210,7 @@ export function TournamentPanel({
   return (
     <View style={bracketStyles.screen}>
       <Pressable onPress={onBack}>
-        <Text style={teamStyles.back}>← Späť na možnosti</Text>
+        <Text style={[teamStyles.back, accent.accentText]}>← Späť na možnosti</Text>
       </Pressable>
       <View style={bracketStyles.header}>
         <View style={teamStyles.info}>
@@ -235,7 +237,7 @@ export function TournamentPanel({
       </View>
 
       {loading ? (
-        <ActivityIndicator color="#ffd400" size="large" />
+        <ActivityIndicator color={accent.accentText.color} size="large" />
       ) : event.format_code !== 'SINGLE_ELIMINATION' ? (
         <View style={bracketStyles.empty}>
           <Text style={bracketStyles.emptyIcon}>◇</Text>
@@ -256,11 +258,11 @@ export function TournamentPanel({
             počte dostanú vybraní účastníci voľný postup (BYE).
           </Text>
           <Pressable
-            style={teamStyles.primary}
+            style={[teamStyles.primary, accent.primaryButton]}
             disabled={busyId === 'generate'}
             onPress={() => void generate()}
           >
-            <Text style={teamStyles.primaryText}>
+            <Text style={[teamStyles.primaryText, accent.primaryText]}>
               {busyId === 'generate'
                 ? 'Generujem…'
                 : 'Generovať zápasy'}

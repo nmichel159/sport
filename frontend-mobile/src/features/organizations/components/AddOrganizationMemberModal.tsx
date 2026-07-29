@@ -2,6 +2,7 @@ import { Pressable, Text, View } from 'react-native'
 import { AppTextInput } from '../../../components/AppTextInput'
 import { SystemModal } from '../../../system/SystemModal'
 import { formStyles } from '../../../styles/formStyles'
+import { useAccentStyles } from '../../../theme/useAccentStyles'
 
 type Props = {
   visible: boolean
@@ -18,6 +19,7 @@ export function AddOrganizationMemberModal({
   onClose,
   onAdd,
 }: Props) {
+  const accent = useAccentStyles()
   return (
     <SystemModal
       visible={visible}
@@ -41,10 +43,10 @@ export function AddOrganizationMemberModal({
               <Text style={formStyles.cancelText}>Zrušiť</Text>
             </Pressable>
             <Pressable
-              style={formStyles.saveDateButton}
+              style={[formStyles.saveDateButton, accent.primaryButton]}
               onPress={onAdd}
             >
-              <Text style={formStyles.saveDateText}>Pridať</Text>
+              <Text style={[formStyles.saveDateText, accent.primaryText]}>Pridať</Text>
             </Pressable>
           </View>
         </View>

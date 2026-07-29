@@ -1,6 +1,7 @@
-import { Text } from 'react-native'
+import { Pressable, Text } from 'react-native'
 import { ProfileOrganizationManagerScreen } from '../../organizations/screens/ProfileOrganizationManagerScreen'
 import { teamStyles } from '../../../styles/teamStyles'
+import { mainStyles } from '../../../styles/mainStyles'
 import type {
   ApiOrganization,
   ApiTeam,
@@ -23,6 +24,7 @@ export function TeamsProfileScreen({
   organizations,
   setOrganizations,
   fetcher,
+  onSignOut,
   ...profileProps
 }: Props) {
 
@@ -35,6 +37,12 @@ export function TeamsProfileScreen({
         setOrganizations={setOrganizations}
         fetcher={fetcher}
       />
+      <Pressable
+        style={mainStyles.signOutButton}
+        onPress={() => void onSignOut()}
+      >
+        <Text style={mainStyles.signOutText}>Odhlásiť sa</Text>
+      </Pressable>
     </>
   )
 }

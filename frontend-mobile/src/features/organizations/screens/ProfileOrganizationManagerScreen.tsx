@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { formStyles } from '../../../styles/formStyles'
 import { teamStyles } from '../../../styles/teamStyles'
+import { useAccentStyles } from '../../../theme/useAccentStyles'
 import type {
   ApiOrganization,
   AuthenticatedFetch,
@@ -21,6 +22,7 @@ export function ProfileOrganizationManagerScreen({
   setOrganizations,
   fetcher,
 }: Props) {
+  const accent = useAccentStyles()
   const [organizationName, setOrganizationName] = useState('')
   const [nickname, setNickname] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -115,14 +117,14 @@ export function ProfileOrganizationManagerScreen({
               {organization.members.length} členovia
             </Text>
           </View>
-          <Text style={teamStyles.buttonText}>›</Text>
+          <Text style={[teamStyles.buttonText, accent.accentText]}>›</Text>
         </Pressable>
       ))}
       <Pressable
-        style={teamStyles.button}
+        style={[teamStyles.button, accent.outlineButton]}
         onPress={() => setShowCreateForm(true)}
       >
-        <Text style={teamStyles.buttonText}>+ Vytvoriť organizáciu</Text>
+        <Text style={[teamStyles.buttonText, accent.accentText]}>+ Vytvoriť organizáciu</Text>
       </Pressable>
       {message ? <Text style={formStyles.error}>{message}</Text> : null}
 

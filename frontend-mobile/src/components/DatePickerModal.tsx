@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { SystemModal } from '../system/SystemModal'
 import { formStyles } from '../styles/formStyles'
+import { useAccentStyles } from '../theme/useAccentStyles'
 
 const months = [
   'Jan',
@@ -31,6 +32,7 @@ export function DatePickerModal({
   onClose,
   onSelect,
 }: Props) {
+  const accent = useAccentStyles()
   const base = initialDate ?? new Date(2000, 0, 1)
   const [year, setYear] = useState(base.getFullYear())
   const [month, setMonth] = useState(base.getMonth())
@@ -80,6 +82,7 @@ export function DatePickerModal({
                 style={[
                   formStyles.dateOption,
                   year === value && formStyles.dateOptionSelected,
+                  year === value && accent.selectedChip,
                 ]}
                 onPress={() => setYear(value)}
               >
@@ -87,6 +90,7 @@ export function DatePickerModal({
                   style={[
                     formStyles.dateOptionText,
                     year === value && formStyles.dateOptionTextSelected,
+                    year === value && accent.primaryText,
                   ]}
                 >
                   {value}
@@ -103,6 +107,7 @@ export function DatePickerModal({
                 style={[
                   formStyles.monthOption,
                   month === index && formStyles.dateOptionSelected,
+                  month === index && accent.selectedChip,
                 ]}
                 onPress={() => setMonth(index)}
               >
@@ -110,6 +115,7 @@ export function DatePickerModal({
                   style={[
                     formStyles.dateOptionText,
                     month === index && formStyles.dateOptionTextSelected,
+                    month === index && accent.primaryText,
                   ]}
                 >
                   {name}
@@ -126,6 +132,7 @@ export function DatePickerModal({
                 style={[
                   formStyles.dayOption,
                   day === value && formStyles.dateOptionSelected,
+                  day === value && accent.selectedChip,
                 ]}
                 onPress={() => setDay(value)}
               >
@@ -133,6 +140,7 @@ export function DatePickerModal({
                   style={[
                     formStyles.dateOptionText,
                     day === value && formStyles.dateOptionTextSelected,
+                    day === value && accent.primaryText,
                   ]}
                 >
                   {value}
@@ -146,12 +154,12 @@ export function DatePickerModal({
               <Text style={formStyles.cancelText}>Zrušiť</Text>
             </Pressable>
             <Pressable
-              style={formStyles.saveDateButton}
+              style={[formStyles.saveDateButton, accent.primaryButton]}
               onPress={() =>
                 onSelect(new Date(year, month, Math.min(day, days.length)))
               }
             >
-              <Text style={formStyles.saveDateText}>OK</Text>
+              <Text style={[formStyles.saveDateText, accent.primaryText]}>OK</Text>
             </Pressable>
           </View>
         </View>

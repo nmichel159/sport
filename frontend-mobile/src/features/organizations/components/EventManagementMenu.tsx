@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from 'react-native'
 import { teamStyles } from '../../../styles/teamStyles'
+import { useAccentStyles } from '../../../theme/useAccentStyles'
 
 type Props = {
   onEdit: () => void
@@ -10,6 +11,7 @@ export function EventManagementMenu({
   onEdit,
   onOpenTournament,
 }: Props) {
+  const accent = useAccentStyles()
   return (
     <View style={teamStyles.section}>
       <Pressable style={teamStyles.card} onPress={onEdit}>
@@ -19,7 +21,7 @@ export function EventManagementMenu({
             Názov, popis a ostatné nastavenia eventu.
           </Text>
         </View>
-        <Text style={teamStyles.buttonText}>›</Text>
+        <Text style={[teamStyles.buttonText, accent.accentText]}>›</Text>
       </Pressable>
       <Pressable style={teamStyles.card} onPress={onOpenTournament}>
         <View style={teamStyles.info}>
@@ -28,7 +30,7 @@ export function EventManagementMenu({
             Generovanie pavúka a zapisovanie výsledkov.
           </Text>
         </View>
-        <Text style={teamStyles.buttonText}>›</Text>
+        <Text style={[teamStyles.buttonText, accent.accentText]}>›</Text>
       </Pressable>
     </View>
   )

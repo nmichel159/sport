@@ -9,6 +9,7 @@ import {
   type TextInputProps,
 } from 'react-native'
 import { KeyboardAwareScrollContext } from './KeyboardAwareScrollView'
+import { useTheme } from '../theme/ThemeContext'
 
 /**
  * Shared text-entry behavior and colors for every form field in the app.
@@ -17,9 +18,9 @@ import { KeyboardAwareScrollContext } from './KeyboardAwareScrollView'
 export const AppTextInput = forwardRef<TextInput, TextInputProps>(
   function AppTextInput(
     {
-      cursorColor = '#ffd400',
+      cursorColor,
       placeholderTextColor = '#9aa0a8',
-      selectionColor = '#ffd400',
+      selectionColor,
       underlineColorAndroid = 'transparent',
       onFocus,
       ...props
@@ -27,6 +28,7 @@ export const AppTextInput = forwardRef<TextInput, TextInputProps>(
     ref,
   ) {
     const registerFocusedInput = useContext(KeyboardAwareScrollContext)
+    const { theme } = useTheme()
     const inputRef = useRef<TextInput>(null)
 
     useImperativeHandle(ref, () => inputRef.current as TextInput)
@@ -35,9 +37,9 @@ export const AppTextInput = forwardRef<TextInput, TextInputProps>(
       <TextInput
         {...props}
         ref={inputRef}
-        cursorColor={cursorColor}
+        cursorColor={cursorColor ?? theme.primary}
         placeholderTextColor={placeholderTextColor}
-        selectionColor={selectionColor}
+        selectionColor={selectionColor ?? theme.primary}
         underlineColorAndroid={underlineColorAndroid}
         onFocus={(event) => {
           registerFocusedInput(inputRef.current)

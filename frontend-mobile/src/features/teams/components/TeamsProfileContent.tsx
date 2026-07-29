@@ -6,13 +6,15 @@ import { formStyles } from '../../../styles/formStyles'
 import { mainStyles } from '../../../styles/mainStyles'
 import { teamStyles } from '../../../styles/teamStyles'
 import type { ApiTeam } from '../../../types/domain'
+import { ThemeSettings } from './ThemeSettings'
+import { useTheme } from '../../../theme/ThemeContext'
+import { useAccentStyles } from '../../../theme/useAccentStyles'
 
 type Props = {
   name: string
   teams: ApiTeam[]
   onCreate: (name: string) => Promise<void>
   onOpen: (id: string) => void
-  onSignOut: () => Promise<void>
 }
 
 export function TeamsProfileContent({
@@ -20,8 +22,9 @@ export function TeamsProfileContent({
   teams,
   onCreate,
   onOpen,
-  onSignOut,
 }: Props) {
+  const { theme } = useTheme()
+  const accent = useAccentStyles()
   const [creating, setCreating] = useState(false)
   const [teamName, setTeamName] = useState('')
   const [busy, setBusy] = useState(false)
@@ -47,13 +50,15 @@ export function TeamsProfileContent({
   return (
     <>
       <View style={mainStyles.profileCard}>
-        <View style={mainStyles.avatar}>
+        <View style={[mainStyles.avatar, { backgroundColor: theme.primary }]}>
           <Text style={mainStyles.avatarText}>
             {name.slice(0, 1).toUpperCase()}
           </Text>
         </View>
         <Text style={mainStyles.profileName}>{name}</Text>
       </View>
+
+      <ThemeSettings />
 
       <View style={teamStyles.section}>
         <Text style={teamStyles.sectionTitle}>MOJE TÍMY</Text>
@@ -100,31 +105,25 @@ export function TeamsProfileContent({
                 <Text style={teamStyles.cancel}>Zrušiť</Text>
               </Pressable>
               <Pressable
-                style={teamStyles.primary}
+                style={[teamStyles.primary, accent.primaryButton]}
                 onPress={() => void create()}
                 disabled={busy}
               >
-                <Text style={teamStyles.primaryText}>Vytvoriť</Text>
+                <Text style={[teamStyles.primaryText, accent.primaryText]}>Vytvoriť</Text>
               </Pressable>
             </View>
           </View>
         ) : (
           <Pressable
-            style={teamStyles.button}
+            style={[teamStyles.button, accent.outlineButton]}
             onPress={() => setCreating(true)}
           >
-            <Text style={teamStyles.buttonText}>+ Vytvoriť tím</Text>
+            <Text style={[teamStyles.buttonText, accent.accentText]}>+ Vytvoriť tím</Text>
           </Pressable>
         )}
       </View>
 
       {message ? <Text style={formStyles.error}>{message}</Text> : null}
-      <Pressable
-        style={mainStyles.signOutButton}
-        onPress={() => void onSignOut()}
-      >
-        <Text style={mainStyles.signOutText}>Odhlásiť sa</Text>
-      </Pressable>
     </>
   )
 }

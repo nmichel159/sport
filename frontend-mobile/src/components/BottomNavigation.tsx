@@ -1,12 +1,15 @@
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { mainStyles } from '../styles/mainStyles'
+import { useTheme } from '../theme/ThemeContext'
 import type { MainTab } from '../types/domain'
 
-const items: ReadonlyArray<{ key: MainTab; icon: string; label: string }> = [
-  { key: 'home', icon: '⌂', label: 'Domov' },
-  { key: 'events', icon: '▣', label: 'Eventy' },
-  { key: 'ranking', icon: '♜', label: 'Ranking' },
-  { key: 'profile', icon: '♙', label: 'Profil' },
+type TabIcon = 'home' | 'calendar' | 'ranking' | 'profile'
+
+const items: ReadonlyArray<{ key: MainTab; icon: TabIcon; label: string }> = [
+  { key: 'home', icon: 'home', label: 'Domov' },
+  { key: 'events', icon: 'calendar', label: 'Eventy' },
+  { key: 'ranking', icon: 'ranking', label: 'Ranking' },
+  { key: 'profile', icon: 'profile', label: 'Profil' },
 ]
 
 type Props = {
@@ -14,40 +17,87 @@ type Props = {
   onChange: (tab: MainTab) => void
 }
 
+function TabIconGlyph({ icon, color }: { icon: TabIcon; color: string }) {
+  if (icon === 'calendar') {
+    return (
+      <View style={[styles.calendar, { borderColor: color }]}>
+        <View style={[styles.calendarDivider, { borderBottomColor: color }]} />
+        <View
+          style={[styles.calendarRing, styles.calendarRingLeft, { backgroundColor: color }]}
+        />
+        <View
+          style={[styles.calendarRing, styles.calendarRingRight, { backgroundColor: color }]}
+        />
+      </View>
+    )
+  }
+
+  const glyph = icon === 'home' ? '⌂' : icon === 'ranking' ? '♜' : '♙'
+  return <Text style={[mainStyles.tabIconText, { color }]}>{glyph}</Text>
+}
+
 export function BottomNavigation({ active, onChange }: Props) {
+  const { theme } = useTheme()
+
   return (
     <View style={mainStyles.tabBar}>
-      {items.map((item) => (
-        <Pressable
-          key={item.key}
-          style={mainStyles.tabItem}
-          onPress={() => onChange(item.key)}
-        >
-          <View
-            style={[
-              mainStyles.tabIcon,
-              active === item.key && mainStyles.tabIconActive,
-            ]}
+      {items.map((item) => {
+        const selected = active === item.key
+        const iconColor = selected ? theme.onPrimary : '#7d818a'
+
+        return (
+          <Pressable
+            key={item.key}
+            style={mainStyles.tabItem}
+            onPress={() => onChange(item.key)}
           >
-            <Text
+            <View
               style={[
-                mainStyles.tabIconText,
-                active === item.key && mainStyles.tabIconTextActive,
+                mainStyles.tabIcon,
+                selected && mainStyles.tabIconActive,
+                selected && { backgroundColor: theme.primary },
               ]}
             >
-              {item.icon}
+              <TabIconGlyph icon={item.icon} color={iconColor} />
+            </View>
+            <Text
+              style={[
+                mainStyles.tabLabel,
+                selected && mainStyles.tabLabelActive,
+                selected && { color: theme.primary },
+              ]}
+            >
+              {item.label}
             </Text>
-          </View>
-          <Text
-            style={[
-              mainStyles.tabLabel,
-              active === item.key && mainStyles.tabLabelActive,
-            ]}
-          >
-            {item.label}
-          </Text>
-        </Pressable>
-      ))}
+          </Pressable>
+        )
+      })}
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  calendar: {
+    width: 18,
+    height: 17,
+    borderWidth: 1.8,
+    borderRadius: 4,
+    position: 'relative',
+  },
+  calendarDivider: {
+    position: 'absolute',
+    top: 4,
+    left: 0,
+    right: 0,
+    borderBottomWidth: 1.6,
+  },
+  calendarRing: {
+    position: 'absolute',
+    top: -3,
+    width: 2.5,
+    height: 5,
+    borderRadius: 2,
+  },
+  calendarRingLeft: { left: 4 },
+  calendarRingRight: { right: 4 },
+})

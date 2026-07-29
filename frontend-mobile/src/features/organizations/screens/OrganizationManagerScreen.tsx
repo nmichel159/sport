@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native'
 import { AppTextInput } from '../../../components/AppTextInput'
 import { formStyles } from '../../../styles/formStyles'
 import { teamStyles } from '../../../styles/teamStyles'
+import { useAccentStyles } from '../../../theme/useAccentStyles'
 import type {
   ApiOrganization,
   AuthenticatedFetch,
@@ -22,6 +23,7 @@ export function OrganizationManagerScreen({
   setOrganizations,
   fetcher,
 }: Props) {
+  const accent = useAccentStyles()
   const [name, setName] = useState('')
   const [active, setActive] = useState<ApiOrganization | null>(
     () => organizations[0] ?? null,
@@ -99,10 +101,10 @@ export function OrganizationManagerScreen({
           style={formStyles.input}
         />
         <Pressable
-          style={teamStyles.primary}
+          style={[teamStyles.primary, accent.primaryButton]}
           onPress={() => void create()}
         >
-          <Text style={teamStyles.primaryText}>Vytvoriť organizáciu</Text>
+          <Text style={[teamStyles.primaryText, accent.primaryText]}>Vytvoriť organizáciu</Text>
         </Pressable>
       </View>
       {message ? <Text style={formStyles.error}>{message}</Text> : null}

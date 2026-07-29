@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native'
 import { AppTextInput } from '../../../components/AppTextInput'
 import { formStyles } from '../../../styles/formStyles'
 import { teamStyles } from '../../../styles/teamStyles'
+import { useAccentStyles } from '../../../theme/useAccentStyles'
 import type { ApiTeam } from '../../../types/domain'
 
 type Props = {
@@ -12,6 +13,7 @@ type Props = {
 }
 
 export function TeamDetailScreen({ team, onBack, onAdd }: Props) {
+  const accent = useAccentStyles()
   const [adding, setAdding] = useState(false)
   const [nickname, setNickname] = useState('')
   const [error, setError] = useState('')
@@ -41,7 +43,7 @@ export function TeamDetailScreen({ team, onBack, onAdd }: Props) {
   return (
     <>
       <Pressable onPress={onBack}>
-        <Text style={teamStyles.back}>← Späť na profil</Text>
+        <Text style={[teamStyles.back, accent.accentText]}>← Späť na profil</Text>
       </Pressable>
       <View style={[teamStyles.card, teamStyles.hero]}>
         <Text style={teamStyles.title}>{team.name}</Text>
@@ -81,21 +83,21 @@ export function TeamDetailScreen({ team, onBack, onAdd }: Props) {
               <Text style={teamStyles.cancel}>Zrušiť</Text>
             </Pressable>
             <Pressable
-              style={teamStyles.primary}
+              style={[teamStyles.primary, accent.primaryButton]}
               onPress={() => void add()}
               disabled={busy}
             >
-              <Text style={teamStyles.primaryText}>Pridať</Text>
+              <Text style={[teamStyles.primaryText, accent.primaryText]}>Pridať</Text>
             </Pressable>
           </View>
           {error ? <Text style={formStyles.error}>{error}</Text> : null}
         </View>
       ) : (
         <Pressable
-          style={teamStyles.button}
+          style={[teamStyles.button, accent.outlineButton]}
           onPress={() => setAdding(true)}
         >
-          <Text style={teamStyles.buttonText}>
+          <Text style={[teamStyles.buttonText, accent.accentText]}>
             + Pridať hráča cez nick
           </Text>
         </Pressable>

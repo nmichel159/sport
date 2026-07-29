@@ -10,6 +10,7 @@ import type {
 } from '../../../types/domain'
 import { EventList } from '../components/EventList'
 import { EventDetailScreen } from './EventDetailScreen'
+import { useTheme } from '../../../theme/ThemeContext'
 
 type EventSection = 'mine' | 'discover' | 'organization'
 
@@ -38,6 +39,7 @@ export function EventsHubScreen({
   userId,
   fetcher,
 }: Props) {
+  const { theme } = useTheme()
   const [section, setSection] = useState<EventSection>('discover')
   const [active, setActive] = useState<ApiEvent | null>(null)
   const [message, setMessage] = useState('')
@@ -108,12 +110,14 @@ export function EventsHubScreen({
             style={[
               eventTabStyles.tab,
               section === item.key && eventTabStyles.tabActive,
+              section === item.key && { backgroundColor: theme.primary },
             ]}
           >
             <Text
               style={[
                 eventTabStyles.label,
                 section === item.key && eventTabStyles.labelActive,
+                section === item.key && { color: theme.onPrimary },
               ]}
               numberOfLines={1}
             >

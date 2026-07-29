@@ -4,6 +4,7 @@ import { DatePickerModal } from '../../../components/DatePickerModal'
 import { catalogStyles } from '../../../styles/catalogStyles'
 import { formStyles } from '../../../styles/formStyles'
 import { teamStyles } from '../../../styles/teamStyles'
+import { useAccentStyles } from '../../../theme/useAccentStyles'
 import type { AuthenticatedFetch, EventPayload } from '../../../types/domain'
 import { useEventCreationForm } from '../hooks/useEventCreationForm'
 
@@ -23,6 +24,7 @@ export function CreateEventForm({
   inModal = false,
 }: Props) {
   const form = useEventCreationForm(fetcher, onCreate)
+  const accent = useAccentStyles()
 
   return (
     <>
@@ -46,6 +48,7 @@ export function CreateEventForm({
               style={[
                 formStyles.genderChip,
                 form.sport === item.name && formStyles.genderChipSelected,
+                form.sport === item.name && accent.selectedChip,
               ]}
               onPress={() => form.setSport(item.name)}
             >
@@ -60,6 +63,7 @@ export function CreateEventForm({
             style={[
               formStyles.genderChip,
               form.mode === 'TEAM' && formStyles.genderChipSelected,
+              form.mode === 'TEAM' && accent.selectedChip,
             ]}
             onPress={() => form.setMode('TEAM')}
           >
@@ -69,6 +73,7 @@ export function CreateEventForm({
             style={[
               formStyles.genderChip,
               form.mode === 'INDIVIDUAL' && formStyles.genderChipSelected,
+              form.mode === 'INDIVIDUAL' && accent.selectedChip,
             ]}
             onPress={() => form.setMode('INDIVIDUAL')}
           >
@@ -86,6 +91,7 @@ export function CreateEventForm({
                 style={[
                   formStyles.genderChip,
                   selected && formStyles.genderChipSelected,
+                  selected && accent.selectedChip,
                 ]}
                 onPress={() => form.setFormatId(item.id)}
               >
@@ -93,6 +99,7 @@ export function CreateEventForm({
                   style={[
                     formStyles.genderText,
                     selected && formStyles.genderTextSelected,
+                    selected && accent.primaryText,
                   ]}
                 >
                   {item.code === 'SINGLE_ELIMINATION'
@@ -162,7 +169,7 @@ export function CreateEventForm({
         />
 
         <Pressable
-          style={teamStyles.primary}
+          style={[teamStyles.primary, accent.primaryButton]}
           disabled={form.busy}
           onPress={() => {
             void form.submit().then((created) => {
@@ -170,7 +177,7 @@ export function CreateEventForm({
             })
           }}
         >
-          <Text style={teamStyles.primaryText}>
+          <Text style={[teamStyles.primaryText, accent.primaryText]}>
             {form.busy ? 'Ukladám…' : 'Vytvoriť event'}
           </Text>
         </Pressable>

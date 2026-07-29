@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native'
 import { formStyles } from '../../../styles/formStyles'
 import { mainStyles } from '../../../styles/mainStyles'
 import { teamStyles } from '../../../styles/teamStyles'
+import { useAccentStyles } from '../../../theme/useAccentStyles'
 import type { ApiEvent, ApiTeam, AuthenticatedFetch } from '../../../types/domain'
 import { MyTournamentScreen } from './MyTournamentScreen'
 
@@ -25,6 +26,7 @@ export function EventDetailScreen({
   onRegister,
   message,
 }: Props) {
+  const accent = useAccentStyles()
   const [choosing, setChoosing] = useState(false)
   const [showTournament, setShowTournament] = useState(false)
   const ownedTeamIds = new Set(teams.map((team) => team.id))
@@ -49,7 +51,7 @@ export function EventDetailScreen({
   return (
     <>
       <Pressable onPress={onBack}>
-        <Text style={teamStyles.back}>← Späť na eventy</Text>
+        <Text style={[teamStyles.back, accent.accentText]}>← Späť na eventy</Text>
       </Pressable>
 
       <View style={teamStyles.form}>
@@ -75,17 +77,17 @@ export function EventDetailScreen({
 
         {isRegistered ? (
           <Pressable
-            style={teamStyles.primary}
+            style={[teamStyles.primary, accent.primaryButton]}
             onPress={() => setShowTournament(true)}
           >
-            <Text style={teamStyles.primaryText}>Môj priebeh turnaja</Text>
+            <Text style={[teamStyles.primaryText, accent.primaryText]}>Môj priebeh turnaja</Text>
           </Pressable>
         ) : event.participation_type === 'INDIVIDUAL' ? (
           <Pressable
-            style={teamStyles.primary}
+            style={[teamStyles.primary, accent.primaryButton]}
             onPress={() => void onRegister(event)}
           >
-            <Text style={teamStyles.primaryText}>Prihlásiť sa</Text>
+            <Text style={[teamStyles.primaryText, accent.primaryText]}>Prihlásiť sa</Text>
           </Pressable>
         ) : choosing ? (
           <View style={teamStyles.section}>
@@ -96,10 +98,10 @@ export function EventDetailScreen({
               teams.map((team) => (
                 <Pressable
                   key={team.id}
-                  style={teamStyles.button}
+                  style={[teamStyles.button, accent.outlineButton]}
                   onPress={() => void onRegister(event, team.id)}
                 >
-                  <Text style={teamStyles.buttonText}>{team.name}</Text>
+                  <Text style={[teamStyles.buttonText, accent.accentText]}>{team.name}</Text>
                 </Pressable>
               ))
             ) : (
@@ -110,14 +112,14 @@ export function EventDetailScreen({
           </View>
         ) : (
           <Pressable
-            style={teamStyles.primary}
+            style={[teamStyles.primary, accent.primaryButton]}
             onPress={() => setChoosing(true)}
           >
-            <Text style={teamStyles.primaryText}>Prihlásiť tím</Text>
+            <Text style={[teamStyles.primaryText, accent.primaryText]}>Prihlásiť tím</Text>
           </Pressable>
         )}
 
-        {message ? <Text style={teamStyles.buttonText}>{message}</Text> : null}
+        {message ? <Text style={[teamStyles.buttonText, accent.accentText]}>{message}</Text> : null}
       </View>
 
       <Text style={teamStyles.sectionTitle}>

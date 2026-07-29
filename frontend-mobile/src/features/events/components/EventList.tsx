@@ -1,6 +1,7 @@
 import { ImageBackground, Pressable, Text, View } from 'react-native'
 import { PlaceholderTab } from '../../../components/PlaceholderTab'
 import { eventCardStyles } from '../../../styles/eventTabStyles'
+import { useTheme } from '../../../theme/ThemeContext'
 import type { ApiEvent } from '../../../types/domain'
 
 type Props = {
@@ -29,6 +30,7 @@ export function EventList({
   emptyTitle,
   emptyDescription,
 }: Props) {
+  const { theme } = useTheme()
   if (!events.length) {
     return (
       <PlaceholderTab
@@ -62,14 +64,19 @@ export function EventList({
               </Text>
             </ImageBackground>
           ) : (
-            <View style={eventCardStyles.imagePlaceholder}>
-              <View style={eventCardStyles.sportMark}>
-                <Text style={eventCardStyles.sportMarkText}>
+            <View
+              style={[
+                eventCardStyles.imagePlaceholder,
+                { backgroundColor: theme.soft, borderBottomColor: theme.softBorder },
+              ]}
+            >
+              <View style={[eventCardStyles.sportMark, { backgroundColor: theme.primary }]}>
+                <Text style={[eventCardStyles.sportMarkText, { color: theme.onPrimary }]}>
                   {event.sport.slice(0, 1).toUpperCase()}
                 </Text>
               </View>
-              <Text style={eventCardStyles.imageHint}>FOTO EVENTU</Text>
-              <Text style={eventCardStyles.imageSport}>
+              <Text style={[eventCardStyles.imageHint, { color: theme.secondary }]}>FOTO EVENTU</Text>
+              <Text style={[eventCardStyles.imageSport, { color: theme.secondary }]}>
                 {event.sport.toUpperCase()}
               </Text>
             </View>

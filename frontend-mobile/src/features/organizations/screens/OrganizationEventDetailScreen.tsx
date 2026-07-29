@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { teamStyles } from '../../../styles/teamStyles'
+import { useAccentStyles } from '../../../theme/useAccentStyles'
 import type {
   ApiEvent,
   AuthenticatedFetch,
@@ -27,6 +28,7 @@ export function OrganizationEventDetailScreen({
   onBack,
   onSave,
 }: Props) {
+  const accent = useAccentStyles()
   const [section, setSection] = useState<DetailSection>('menu')
   const [name, setName] = useState(event.name)
   const [description, setDescription] = useState(event.description ?? '')
@@ -59,7 +61,7 @@ export function OrganizationEventDetailScreen({
   return (
     <>
       <Pressable onPress={onBack}>
-        <Text style={teamStyles.back}>
+        <Text style={[teamStyles.back, accent.accentText]}>
           ← Späť na eventy organizácie
         </Text>
       </Pressable>
