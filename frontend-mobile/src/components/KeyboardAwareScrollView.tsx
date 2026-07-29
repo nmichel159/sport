@@ -36,6 +36,7 @@ export const KeyboardAwareScrollView = forwardRef<
 >(function KeyboardAwareScrollView(
   {
     children,
+    keyboardDismissMode = 'on-drag',
     keyboardShouldPersistTaps = 'handled',
     onScroll,
     scrollEventThrottle = 16,
@@ -145,6 +146,7 @@ export const KeyboardAwareScrollView = forwardRef<
       <ScrollView
         {...props}
         ref={scrollRef}
+        keyboardDismissMode={keyboardDismissMode}
         keyboardShouldPersistTaps={keyboardShouldPersistTaps}
         onScroll={handleScroll}
         scrollEventThrottle={scrollEventThrottle}
