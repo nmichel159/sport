@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   Text,
   View,
 } from 'react-native'
+import { ZoomableBracket } from '../../../components/ZoomableBracket'
 import { bracketStyles } from '../../../styles/bracketStyles'
 import { formStyles } from '../../../styles/formStyles'
 import { teamStyles } from '../../../styles/teamStyles'
@@ -165,12 +165,12 @@ export function MyTournamentScreen({
               </Text>
             )}
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator
-            contentContainerStyle={bracketStyles.bracket}
+          <ZoomableBracket
+            contentWidth={rounds.length * 272}
+            title={event.name}
           >
-            {rounds.map((round) => (
+            <View style={bracketStyles.bracket}>
+              {rounds.map((round) => (
               <View key={round.number} style={bracketStyles.round}>
                 <View style={bracketStyles.roundHeader}>
                   <Text style={bracketStyles.roundNumber}>KOLO {round.number}</Text>
@@ -221,8 +221,9 @@ export function MyTournamentScreen({
                   ))}
                 </View>
               </View>
-            ))}
-          </ScrollView>
+              ))}
+            </View>
+          </ZoomableBracket>
         </>
       )}
       {error ? <Text style={formStyles.error}>{error}</Text> : null}

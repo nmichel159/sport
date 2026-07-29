@@ -24,7 +24,8 @@
       "package": "com.nmichel.sport",
       "softwareKeyboardLayoutMode": "resize",
       "backgroundColor": "#0b0c0e",
-      "edgeToEdgeEnabled": false
+      "edgeToEdgeEnabled": false,
+      "usesCleartextTraffic": true
     },
     "androidNavigationBar": {
       "visible": "sticky-immersive",

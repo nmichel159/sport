@@ -74,8 +74,10 @@ export const bracketStyles = StyleSheet.create({
   nextMatchOpponent: { color: '#f3f4f6', fontSize: 14, fontWeight: '700' },
   bracket: {
     minHeight: 520,
+    flexDirection: 'row',
     gap: 20,
-    paddingHorizontal: 2,
+    paddingHorizontal: 10,
+    paddingTop: 12,
     paddingBottom: 12,
   },
   round: {

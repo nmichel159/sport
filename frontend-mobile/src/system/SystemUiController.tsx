@@ -9,10 +9,6 @@ export async function applySystemUiSettings() {
   if (!isAndroid) return
 
   await Promise.allSettled([
-    // A bottom swipe reveals the panel and keeps it available until we hide it.
-    // This is essential for the user to be able to leave the app with Home or
-    // Recents instead of Android immediately hiding the panel again.
-    NavigationBar.setBehaviorAsync('inset-swipe'),
     NavigationBar.setVisibilityAsync('hidden'),
     NavigationBar.setButtonStyleAsync('light'),
   ])
