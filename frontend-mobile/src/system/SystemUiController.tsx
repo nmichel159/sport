@@ -1,60 +1,65 @@
 import * as NavigationBar from 'expo-navigation-bar'
 import { useEffect, useRef } from 'react'
-import { AppState, Keyboard, Platform } from 'react-native'
+import { AppState, Keyboard, Platform, StatusBar } from 'react-native'
 
 const isAndroid = Platform.OS === 'android'
-const navigationBarRevealDuration = 4000
+const systemBarColor = '#0b0c0e'
+const reapplyDelays = [0, 100, 500]
 
 export async function applySystemUiSettings() {
   if (!isAndroid) return
 
+  StatusBar.setBarStyle('light-content', true)
+  StatusBar.setBackgroundColor(systemBarColor, true)
+  StatusBar.setTranslucent(false)
+  StatusBar.setHidden(true, 'fade')
+
   await Promise.allSettled([
-    NavigationBar.setVisibilityAsync('hidden'),
+    NavigationBar.setBackgroundColorAsync(systemBarColor),
     NavigationBar.setButtonStyleAsync('light'),
+    NavigationBar.setBehaviorAsync('overlay-swipe'),
   ])
+  await NavigationBar.setVisibilityAsync('hidden').catch(() => undefined)
 }
 
 export function SystemUiController() {
   const navigationBarVisibility = NavigationBar.useVisibility()
-  const hideNavigationBarTimer = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  )
+  const reapplyTimers = useRef<ReturnType<typeof setTimeout>[]>([])
 
-  const clearHideTimer = () => {
-    if (!hideNavigationBarTimer.current) return
-    clearTimeout(hideNavigationBarTimer.current)
-    hideNavigationBarTimer.current = null
+  const clearReapplyTimers = () => {
+    reapplyTimers.current.forEach(clearTimeout)
+    reapplyTimers.current = []
+  }
+
+  const scheduleSystemUiReapply = () => {
+    clearReapplyTimers()
+    reapplyTimers.current = reapplyDelays.map((delay) =>
+      setTimeout(() => void applySystemUiSettings(), delay),
+    )
   }
 
   useEffect(() => {
-    void applySystemUiSettings()
+    scheduleSystemUiReapply()
 
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void applySystemUiSettings()
+      if (state === 'active') scheduleSystemUiReapply()
     })
     const keyboardHideSubscription = Keyboard.addListener('keyboardDidHide', () => {
-      // Android may restore a light navigation bar after the keyboard closes.
-      setTimeout(() => void applySystemUiSettings(), 100)
+      // Android may restore its system bars after the keyboard closes.
+      scheduleSystemUiReapply()
     })
 
     return () => {
       subscription.remove()
       keyboardHideSubscription.remove()
-      clearHideTimer()
+      clearReapplyTimers()
     }
   }, [])
 
   useEffect(() => {
     if (navigationBarVisibility === 'visible') {
-      clearHideTimer()
-      hideNavigationBarTimer.current = setTimeout(() => {
-        void applySystemUiSettings()
-        hideNavigationBarTimer.current = null
-      }, navigationBarRevealDuration)
-      return
+      scheduleSystemUiReapply()
     }
-
-    clearHideTimer()
   }, [navigationBarVisibility])
 
   return null

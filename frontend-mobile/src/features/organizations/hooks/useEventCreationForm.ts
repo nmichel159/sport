@@ -64,7 +64,7 @@ export function useEventCreationForm(
   const submit = async () => {
     if (!name.trim() || !sport || !formatId || !eventDate || !city) {
       setError('Vyplň názov, šport, herný systém, termín a mesto.')
-      return
+      return false
     }
 
     setBusy(true)
@@ -91,8 +91,10 @@ export function useEventCreationForm(
       setCityQuery('')
       setCity(null)
       setDescription('')
+      return true
     } catch {
       setError('Event sa nepodarilo vytvoriť.')
+      return false
     } finally {
       setBusy(false)
     }

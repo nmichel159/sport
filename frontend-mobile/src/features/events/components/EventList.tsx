@@ -1,6 +1,6 @@
-import { Pressable, Text, View } from 'react-native'
+import { ImageBackground, Pressable, Text, View } from 'react-native'
 import { PlaceholderTab } from '../../../components/PlaceholderTab'
-import { teamStyles } from '../../../styles/teamStyles'
+import { eventCardStyles } from '../../../styles/eventTabStyles'
 import type { ApiEvent } from '../../../types/domain'
 
 type Props = {
@@ -8,6 +8,19 @@ type Props = {
   onOpen: (event: ApiEvent) => void
   emptyTitle: string
   emptyDescription: string
+}
+
+function formatEventDate(value?: string | null) {
+  if (!value) return 'Termín sa doplní'
+
+  const date = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+
+  return new Intl.DateTimeFormat('sk-SK', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
 }
 
 export function EventList({
@@ -19,7 +32,7 @@ export function EventList({
   if (!events.length) {
     return (
       <PlaceholderTab
-        icon="⌕"
+        icon="◇"
         title={emptyTitle}
         description={emptyDescription}
       />
@@ -27,35 +40,62 @@ export function EventList({
   }
 
   return (
-    <View style={teamStyles.section}>
+    <View style={eventCardStyles.grid}>
       {events.map((event) => (
         <Pressable
           key={event.id}
-          style={teamStyles.card}
           onPress={() => onOpen(event)}
+          style={({ pressed }) => [
+            eventCardStyles.card,
+            pressed && eventCardStyles.cardPressed,
+          ]}
         >
-          <View style={[teamStyles.badge, { backgroundColor: '#ffd400' }]}>
-            <Text style={teamStyles.badgeText}>
-              {event.sport.slice(0, 1).toUpperCase()}
+          {event.image_url ? (
+            <ImageBackground
+              source={{ uri: event.image_url }}
+              style={eventCardStyles.image}
+              imageStyle={eventCardStyles.imageInner}
+            >
+              <View style={eventCardStyles.imageShade} />
+              <Text style={eventCardStyles.imageSport}>
+                {event.sport.toUpperCase()}
+              </Text>
+            </ImageBackground>
+          ) : (
+            <View style={eventCardStyles.imagePlaceholder}>
+              <View style={eventCardStyles.sportMark}>
+                <Text style={eventCardStyles.sportMarkText}>
+                  {event.sport.slice(0, 1).toUpperCase()}
+                </Text>
+              </View>
+              <Text style={eventCardStyles.imageHint}>FOTO EVENTU</Text>
+              <Text style={eventCardStyles.imageSport}>
+                {event.sport.toUpperCase()}
+              </Text>
+            </View>
+          )}
+
+          <View style={eventCardStyles.body}>
+            <Text style={eventCardStyles.type}>
+              {event.participation_type === 'TEAM' ? 'TÍMOVÝ' : 'INDIVIDUÁLNY'}
             </Text>
+            <Text style={eventCardStyles.title} numberOfLines={2}>
+              {event.name}
+            </Text>
+            <Text style={eventCardStyles.description} numberOfLines={3}>
+              {event.description ?? 'Otvor event pre všetky podrobnosti.'}
+            </Text>
+            <View style={eventCardStyles.meta}>
+              <Text style={eventCardStyles.metaText} numberOfLines={1}>
+                ◷ {formatEventDate(event.event_date)}
+              </Text>
+              <Text style={eventCardStyles.metaText} numberOfLines={1}>
+                {event.location ? `⌖ ${event.location}` : '⌖ Miesto sa doplní'}
+              </Text>
+            </View>
           </View>
-          <View style={teamStyles.info}>
-            <Text style={teamStyles.title}>{event.name}</Text>
-            <Text style={teamStyles.muted}>
-              {event.sport} ·{' '}
-              {event.participation_type === 'TEAM'
-                ? 'Tímový'
-                : 'Individuálny'}
-            </Text>
-            <Text style={teamStyles.muted}>
-              {event.event_date ?? 'Termín sa doplní'}
-              {event.location ? ` · ${event.location}` : ''}
-            </Text>
-          </View>
-          <Text style={teamStyles.buttonText}>›</Text>
         </Pressable>
       ))}
     </View>
   )
 }
-

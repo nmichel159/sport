@@ -221,7 +221,6 @@ export function ZoomableBracket({
                   ]}
                 >
                   <Text style={styles.closeIcon}>×</Text>
-                  <Text style={styles.closeText}>ZAVRIEŤ</Text>
                 </Pressable>
               </View>
 
@@ -314,12 +313,10 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   closeButton: {
-    minWidth: 96,
+    width: 52,
     height: 52,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
     borderRadius: 12,
     backgroundColor: '#ffd400',
   },
@@ -331,11 +328,6 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontWeight: '900',
     lineHeight: 32,
-  },
-  closeText: {
-    color: '#171400',
-    fontSize: 11,
-    fontWeight: '900',
   },
   viewport: {
     flex: 1,

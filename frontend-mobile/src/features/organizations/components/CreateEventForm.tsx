@@ -11,15 +11,25 @@ type Props = {
   onCreate: (payload: EventPayload) => Promise<void>
   fetcher: AuthenticatedFetch
   message: string
+  onCreated?: () => void
+  inModal?: boolean
 }
 
-export function CreateEventForm({ onCreate, fetcher, message }: Props) {
+export function CreateEventForm({
+  onCreate,
+  fetcher,
+  message,
+  onCreated,
+  inModal = false,
+}: Props) {
   const form = useEventCreationForm(fetcher, onCreate)
 
   return (
     <>
-      <View style={teamStyles.form}>
-        <Text style={teamStyles.title}>Vytvoriť event</Text>
+      <View style={inModal ? formStyles.modalEventForm : teamStyles.form}>
+        <Text style={[teamStyles.title, inModal && formStyles.modalEventTitle]}>
+          Vytvoriť event
+        </Text>
         <AppTextInput
           value={form.name}
           onChangeText={form.setName}
@@ -154,7 +164,11 @@ export function CreateEventForm({ onCreate, fetcher, message }: Props) {
         <Pressable
           style={teamStyles.primary}
           disabled={form.busy}
-          onPress={() => void form.submit()}
+          onPress={() => {
+            void form.submit().then((created) => {
+              if (created) onCreated?.()
+            })
+          }}
         >
           <Text style={teamStyles.primaryText}>
             {form.busy ? 'Ukladám…' : 'Vytvoriť event'}

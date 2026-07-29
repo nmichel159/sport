@@ -40,6 +40,8 @@ export type ApiEvent = {
   location?: string | null
   fee?: number | null
   description?: string | null
+  // The API does not provide event images yet, but discovery cards are ready for one.
+  image_url?: string | null
   registrations: ApiRegistration[]
 }
 

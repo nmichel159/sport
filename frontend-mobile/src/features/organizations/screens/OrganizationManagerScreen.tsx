@@ -63,6 +63,7 @@ export function OrganizationManagerScreen({
       setActive(item)
     } catch {
       setMessage('Zmenu sa nepodarilo uložiť.')
+      throw Error('ORGANIZATION_UPDATE_FAILED')
     }
   }
 

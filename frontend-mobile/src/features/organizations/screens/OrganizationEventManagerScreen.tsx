@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import { teamStyles } from '../../../styles/teamStyles'
 import type {
   ApiEvent,
@@ -7,7 +7,7 @@ import type {
   AuthenticatedFetch,
   EventPayload,
 } from '../../../types/domain'
-import { CreateEventForm } from '../components/CreateEventForm'
+import { CreateEventModal } from '../components/CreateEventModal'
 import { OrganizationEventList } from '../components/OrganizationEventList'
 import { OrganizationEventDetailScreen } from './OrganizationEventDetailScreen'
 
@@ -27,6 +27,7 @@ export function OrganizationEventManagerScreen({
   message,
 }: Props) {
   const [openedEvent, setOpenedEvent] = useState<ApiEvent | null>(null)
+  const [creatingEvent, setCreatingEvent] = useState(false)
 
   if (openedEvent) {
     return (
@@ -48,11 +49,19 @@ export function OrganizationEventManagerScreen({
           <Text style={teamStyles.muted}>Eventy organizácie</Text>
         </View>
       </View>
+      <Pressable
+        style={teamStyles.primary}
+        onPress={() => setCreatingEvent(true)}
+      >
+        <Text style={teamStyles.primaryText}>＋ Vytvoriť event</Text>
+      </Pressable>
       <OrganizationEventList
         events={organization.events}
         onOpen={setOpenedEvent}
       />
-      <CreateEventForm
+      <CreateEventModal
+        visible={creatingEvent}
+        onClose={() => setCreatingEvent(false)}
         onCreate={onCreate}
         fetcher={fetcher}
         message={message}
