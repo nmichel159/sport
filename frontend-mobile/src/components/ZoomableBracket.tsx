@@ -1,14 +1,19 @@
 import {
   type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
   useState,
 } from 'react'
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
   StyleSheet,
   Text,
+  type TextInput,
   View,
 } from 'react-native'
 import {
@@ -22,9 +27,11 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { KeyboardAwareScrollContext } from './KeyboardAwareScrollView'
 
 const minScale = 0.4
 const maxScale = 2.5
+const keyboardClearance = 24
 
 type Props = {
   children: ReactNode
@@ -48,6 +55,73 @@ export function ZoomableBracket({
   const pinchStartScale = useSharedValue(1)
   const pinchContentX = useSharedValue(0)
   const pinchContentY = useSharedValue(0)
+  const viewportRef = useRef<View>(null)
+  const focusedInput = useRef<TextInput | null>(null)
+  const keyboardTop = useRef(Number.POSITIVE_INFINITY)
+  const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const revealFocusedInput = useCallback((delay = 80) => {
+    if (revealTimer.current) clearTimeout(revealTimer.current)
+
+    revealTimer.current = setTimeout(() => {
+      const input = focusedInput.current
+      const viewport = viewportRef.current
+      if (!input || !viewport) return
+
+      input.measureInWindow((_inputX, inputY, _inputWidth, inputHeight) => {
+        viewport.measureInWindow(
+          (_viewportX, viewportY, _viewportWidth, viewportHeight) => {
+            const visibleTop = viewportY + keyboardClearance
+            const visibleBottom =
+              Math.min(
+                viewportY + viewportHeight,
+                keyboardTop.current,
+              ) - keyboardClearance
+            const inputBottom = inputY + inputHeight
+
+            let delta = 0
+            if (inputBottom > visibleBottom) {
+              delta = inputBottom - visibleBottom
+            } else if (inputY < visibleTop) {
+              delta = inputY - visibleTop
+            }
+
+            if (Math.abs(delta) >= 1) {
+              translateY.value = withTiming(
+                translateY.value - delta,
+                { duration: 160 },
+              )
+            }
+          },
+        )
+      })
+    }, delay)
+  }, [translateY])
+
+  const registerFocusedInput = useCallback(
+    (input: TextInput | null) => {
+      focusedInput.current = input
+      revealFocusedInput()
+    },
+    [revealFocusedInput],
+  )
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', (event) => {
+      keyboardTop.current = event.endCoordinates.screenY
+      revealFocusedInput(120)
+    })
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      keyboardTop.current = Number.POSITIVE_INFINITY
+      focusedInput.current = null
+    })
+
+    return () => {
+      showSubscription.remove()
+      hideSubscription.remove()
+      if (revealTimer.current) clearTimeout(revealTimer.current)
+    }
+  }, [revealFocusedInput])
 
   const reset = () => {
     translateX.value = withTiming(0, { duration: 160 })
@@ -152,7 +226,7 @@ export function ZoomableBracket({
               </View>
 
               <GestureDetector gesture={canvasGesture}>
-                <View style={styles.viewport}>
+                <View ref={viewportRef} style={styles.viewport}>
                   <Animated.View
                     style={[
                       styles.content,
@@ -164,7 +238,11 @@ export function ZoomableBracket({
                       },
                     ]}
                   >
-                    {children}
+                    <KeyboardAwareScrollContext.Provider
+                      value={registerFocusedInput}
+                    >
+                      {children}
+                    </KeyboardAwareScrollContext.Provider>
                   </Animated.View>
                 </View>
               </GestureDetector>
