@@ -1,7 +1,7 @@
 import os
 
 os.environ.setdefault("DATABASE_URL", "sqlite://")
-os.environ.setdefault("SECRET_KEY", "test")
+os.environ.setdefault("SECRET_KEY", "test-secret-key-at-least-32-bytes-long")
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -36,5 +36,5 @@ def test_health():
 
 def test_private_endpoint_requires_auth():
     client = TestClient(app)
-    listed = client.get("/api/v1/users")
-    assert listed.status_code == 401
+    response = client.get("/api/v1/auth/me")
+    assert response.status_code == 401

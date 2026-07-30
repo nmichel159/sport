@@ -31,14 +31,46 @@ def hash_refresh_token(token: str) -> str:
 
 def create_access_token(user: User) -> str:
     settings = get_settings()
-    return jwt.encode({"sub": str(user.id), "exp": utcnow() + timedelta(minutes=settings.access_token_expire_minutes), "type": "access"}, settings.secret_key, algorithm="HS256")
+    issued_at = utcnow()
+    return jwt.encode(
+        {
+            "sub": str(user.id),
+            "exp": issued_at
+            + timedelta(minutes=settings.access_token_expire_minutes),
+            "iat": issued_at,
+            "jti": str(uuid.uuid4()),
+            "iss": settings.jwt_issuer,
+            "aud": settings.jwt_audience,
+            "type": "access",
+        },
+        settings.secret_key,
+        algorithm="HS256",
+    )
 
 
 def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(bearer), db: Session = Depends(get_db)) -> User:
     if not credentials:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail={"code": "AUTH_REQUIRED"}, headers={"WWW-Authenticate": "Bearer"})
     try:
-        claims = jwt.decode(credentials.credentials, get_settings().secret_key, algorithms=["HS256"])
+        settings = get_settings()
+        claims = jwt.decode(
+            credentials.credentials,
+            settings.secret_key,
+            algorithms=["HS256"],
+            audience=settings.jwt_audience,
+            issuer=settings.jwt_issuer,
+            options={
+                "require": [
+                    "aud",
+                    "exp",
+                    "iat",
+                    "iss",
+                    "jti",
+                    "sub",
+                    "type",
+                ]
+            },
+        )
         if claims.get("type") != "access":
             raise ValueError
         user = db.scalar(select(User).where(User.id == uuid.UUID(claims["sub"])))

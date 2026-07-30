@@ -3,13 +3,25 @@
     "name": "Sport",
     "slug": "sport",
     "version": "0.1.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "scheme": "com.nmichel.sport",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0b0c0e",
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      [
+        "expo-navigation-bar",
+        {
+          "barStyle": "light",
+          "visibility": "visible"
+        }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
@@ -22,22 +34,22 @@
     },
     "android": {
       "package": "com.nmichel.sport",
+      "allowBackup": false,
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.VIBRATE"
+      ],
       "softwareKeyboardLayoutMode": "resize",
       "backgroundColor": "#0b0c0e",
-      "edgeToEdgeEnabled": false,
-      "usesCleartextTraffic": true
+      "edgeToEdgeEnabled": true,
+      "usesCleartextTraffic": false
     },
     "androidStatusBar": {
-      "hidden": true,
-      "translucent": false,
-      "barStyle": "light-content",
-      "backgroundColor": "#0b0c0e"
-    },
-    "androidNavigationBar": {
-      "visible": "sticky-immersive",
-      "barStyle": "light-content",
-      "backgroundColor": "#0b0c0e",
-      "enforceContrast": false
+      "hidden": false,
+      "translucent": true,
+      "barStyle": "light-content"
     }
   }
 }

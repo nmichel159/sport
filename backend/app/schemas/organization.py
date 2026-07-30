@@ -2,15 +2,20 @@ from datetime import date, datetime
 from uuid import UUID
 
 from decimal import Decimal
+from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class OrganizationCreate(BaseModel):
+class StrictInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class OrganizationCreate(StrictInput):
     name: str = Field(min_length=1, max_length=180)
 
 
-class OrganizationMemberAdd(BaseModel):
+class OrganizationMemberAdd(StrictInput):
     nickname: str = Field(min_length=3, max_length=30)
 
 
@@ -20,10 +25,10 @@ class OrganizationMemberRead(BaseModel):
     role: str
 
 
-class EventCreate(BaseModel):
+class EventCreate(StrictInput):
     name: str = Field(min_length=1, max_length=180)
     sport: str = Field(min_length=1, max_length=80)
-    participation_type: str = Field(pattern="^(TEAM|INDIVIDUAL)$")
+    participation_type: Literal["TEAM", "INDIVIDUAL"]
     format_id: UUID | None = None
     event_date: date | None = None
     location: str | None = Field(default=None, max_length=180)
@@ -46,7 +51,7 @@ class EventRead(BaseModel):
     registrations: list["EventRegistrationRead"] = []
 
 
-class EventRegistrationCreate(BaseModel):
+class EventRegistrationCreate(StrictInput):
     team_id: UUID | None = None
 
 
@@ -88,14 +93,14 @@ class EventBracketRead(BaseModel):
     matches: list[EventMatchRead]
 
 
-class EventMatchScoreUpdate(BaseModel):
-    score_a: int = Field(ge=0)
-    score_b: int = Field(ge=0)
+class EventMatchScoreUpdate(StrictInput):
+    score_a: int = Field(ge=0, le=1_000_000)
+    score_b: int = Field(ge=0, le=1_000_000)
 
 
-class GroupStageCreate(BaseModel):
-    group_count: int = Field(ge=1)
-    advancing_count: int = Field(ge=2)
+class GroupStageCreate(StrictInput):
+    group_count: int = Field(ge=1, le=64)
+    advancing_count: int = Field(ge=2, le=4096)
 
 
 class GroupParticipantRead(BaseModel):

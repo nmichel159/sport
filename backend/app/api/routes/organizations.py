@@ -151,25 +151,36 @@ def accessible_organization(
     return organization
 
 
+def manageable_organization(
+    organization_id: uuid.UUID, user: User, db: Session
+) -> Organization:
+    organization = accessible_organization(organization_id, user, db)
+    membership = db.get(
+        OrganizationMember,
+        {"organization_id": organization.id, "user_id": user.id},
+    )
+    if (
+        organization.owner_user_id != user.id
+        and (not membership or membership.role != "ADMIN")
+    ):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail={"code": "ORGANIZATION_MANAGER_REQUIRED"},
+        )
+    return organization
+
+
 def manageable_event(
     organization_id: uuid.UUID,
     event_id: uuid.UUID,
     user: User,
     db: Session,
 ) -> tuple[Organization, OrganizationEvent]:
-    organization = accessible_organization(organization_id, user, db)
+    organization = manageable_organization(organization_id, user, db)
     event = db.get(OrganizationEvent, event_id)
     if not event or event.organization_id != organization.id:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, detail={"code": "EVENT_NOT_FOUND"}
-        )
-    if (
-        event.created_by_user_id != user.id
-        and organization.owner_user_id != user.id
-    ):
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            detail={"code": "EVENT_MANAGER_REQUIRED"},
         )
     return organization, event
 
@@ -784,6 +795,11 @@ def remove_member(
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, detail={"code": "MEMBER_NOT_FOUND"}
         )
+    if member.user_id == organization.owner_user_id:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail={"code": "ORGANIZATION_OWNER_CANNOT_BE_REMOVED"},
+        )
     db.delete(member)
     db.commit()
     return organization_read(organization, db)
@@ -796,7 +812,7 @@ def create_event(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_active_user),
 ):
-    organization = accessible_organization(organization_id, user, db)
+    organization = manageable_organization(organization_id, user, db)
     name, sport = payload.name.strip(), payload.sport.strip()
     if not name:
         raise HTTPException(

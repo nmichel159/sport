@@ -1,61 +1,48 @@
-import { useEffect } from 'react'
 import {
   KeyboardAvoidingView,
   Modal,
   Platform,
   type ModalProps,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView'
-import { applySystemUiSettings } from './SystemUiController'
 
 /**
- * React Native modals use a separate Android window. Reapply the global
- * immersive policy whenever that window opens or closes.
+ * React Native modals use a separate Android window. Make that window
+ * edge-to-edge too, then keep interactive content inside the safe area.
  */
 export function SystemModal({
   children,
   visible = true,
-  onShow,
-  onDismiss,
+  navigationBarTranslucent = Platform.OS === 'android',
+  statusBarTranslucent = Platform.OS === 'android',
   ...props
 }: ModalProps) {
-  useEffect(() => {
-    if (!visible) return
-
-    void applySystemUiSettings()
-    const afterAnimation = setTimeout(() => {
-      void applySystemUiSettings()
-    }, 350)
-
-    return () => clearTimeout(afterAnimation)
-  }, [visible])
-
   return (
     <Modal
       {...props}
       visible={visible}
-      onShow={(event) => {
-        void applySystemUiSettings()
-        onShow?.(event)
-      }}
-      onDismiss={() => {
-        void applySystemUiSettings()
-        onDismiss?.()
-      }}
+      navigationBarTranslucent={navigationBarTranslucent}
+      statusBarTranslucent={statusBarTranslucent}
     >
-      <KeyboardAvoidingView
+      <SafeAreaView
+        edges={['top', 'right', 'bottom', 'left']}
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <KeyboardAwareScrollView
+        <KeyboardAvoidingView
           style={{ flex: 1 }}
-          contentContainerStyle={{ flexGrow: 1 }}
-          automaticallyAdjustKeyboardInsets
-          keyboardDismissMode="on-drag"
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          {children}
-        </KeyboardAwareScrollView>
-      </KeyboardAvoidingView>
+          <KeyboardAwareScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ flexGrow: 1 }}
+            automaticallyAdjustKeyboardInsets
+            keyboardDismissMode="on-drag"
+          >
+            {children}
+          </KeyboardAwareScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </Modal>
   )
 }

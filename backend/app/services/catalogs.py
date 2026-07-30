@@ -7,13 +7,19 @@ from unicodedata import combining, normalize
 
 
 CATALOG_DIR = Path(__file__).resolve().parent.parent / "catalog_data"
+CATALOG_FILES = {
+    "district-cities": "district-cities.json",
+    "schools": "schools.json",
+    "sports": "sports.json",
+}
 
 
 @lru_cache
 def get_catalog(name: str) -> tuple[str, list[dict[str, object]]]:
-    path = CATALOG_DIR / f"{name}.json"
-    if not path.is_file():
+    filename = CATALOG_FILES.get(name)
+    if filename is None:
         raise KeyError(name)
+    path = CATALOG_DIR / filename
     content = path.read_bytes()
     # The content hash is the version. Publishing changed data automatically
     # creates a new version without maintaining a separate counter by hand.

@@ -1,11 +1,8 @@
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr
-
-
-class UserCreate(BaseModel):
-    email: EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserRead(BaseModel):
@@ -31,17 +28,21 @@ class UserRead(BaseModel):
 
 
 class UserSettingsUpdate(BaseModel):
-    preferred_language: str | None = None
-    display_name: str | None = None
-    nickname: str | None = None
+    model_config = ConfigDict(extra="forbid")
+
+    preferred_language: Literal["sk", "en"] | None = None
+    display_name: str | None = Field(default=None, max_length=255)
+    nickname: str | None = Field(default=None, min_length=3, max_length=30)
 
 
 class OnboardingComplete(BaseModel):
-    nickname: str
-    first_name: str
-    last_name: str
+    model_config = ConfigDict(extra="forbid")
+
+    nickname: str = Field(min_length=3, max_length=30)
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
     birth_date: date
-    gender: str
-    preferred_language: str = "sk"
-    school_code: str
-    district_city: str
+    gender: Literal["male", "female", "other", "prefer_not_to_say"]
+    preferred_language: Literal["sk", "en"] = "sk"
+    school_code: str = Field(min_length=1, max_length=20)
+    district_city: str = Field(min_length=1, max_length=100)

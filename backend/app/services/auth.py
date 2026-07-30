@@ -5,6 +5,7 @@ import uuid
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -27,7 +28,14 @@ def verify_google_token(token: str) -> dict:
         # Browser and container clocks can differ by a second around token issue
         # time. Keep this narrow so expired tokens remain rejected.
         payload = id_token.verify_oauth2_token(token, google_requests.Request(), audience=None, clock_skew_in_seconds=10)
-        if payload.get("aud") not in audiences or payload.get("iss") not in ("accounts.google.com", "https://accounts.google.com") or not payload.get("sub"):
+        if (
+            payload.get("aud") not in audiences
+            or payload.get("iss")
+            not in ("accounts.google.com", "https://accounts.google.com")
+            or not payload.get("sub")
+            or not payload.get("email")
+            or payload.get("email_verified") is not True
+        ):
             raise InvalidGoogleToken()
         return payload
     except Exception as exc:
@@ -41,9 +49,18 @@ def authenticate_google(db: Session, claims: dict) -> User:
     if identity:
         user = db.scalar(select(User).where(User.id == identity.user_id))
     else:
-        # Email is informational; Google subject is the durable account key.
-        user = User(email=claims.get("email", f"{subject}@google.invalid"), email_verified=bool(claims.get("email_verified")), display_name=claims.get("name"), profile_image_url=claims.get("picture"))
-        db.add(user); db.flush()
+        # A verified Google email may safely claim an existing pre-created or
+        # imported profile. The provider subject remains the durable login key.
+        user = db.scalar(select(User).where(User.email == claims["email"]))
+        if not user:
+            user = User(
+                email=claims["email"],
+                email_verified=True,
+                display_name=claims.get("name"),
+                profile_image_url=claims.get("picture"),
+            )
+            db.add(user)
+            db.flush()
         db.add(AuthIdentity(user_id=user.id, provider="GOOGLE", provider_subject=subject, provider_email=claims.get("email"), provider_email_verified=bool(claims.get("email_verified"))))
     user.email = claims.get("email", user.email)
     user.email_verified = bool(claims.get("email_verified"))
@@ -52,7 +69,24 @@ def authenticate_google(db: Session, claims: dict) -> User:
     user.last_login_at = utcnow()
     if user.account_status != "ACTIVE":
         db.rollback(); return user
-    db.commit(); db.refresh(user)
+    try:
+        db.commit()
+    except IntegrityError:
+        # Concurrent first logins can race on the unique provider subject.
+        # Recover by loading the identity committed by the winning request.
+        db.rollback()
+        identity = db.scalar(
+            select(AuthIdentity).where(
+                AuthIdentity.provider == "GOOGLE",
+                AuthIdentity.provider_subject == subject,
+            )
+        )
+        if not identity:
+            raise
+        user = db.get(User, identity.user_id)
+        if not user:
+            raise
+    db.refresh(user)
     return user
 
 
@@ -64,7 +98,11 @@ def create_session(db: Session, user: User, device_name: str | None, platform: s
 
 
 def rotate_session(db: Session, raw: str) -> tuple[User, AuthSession, str] | None:
-    session = db.scalar(select(AuthSession).where(AuthSession.refresh_token_hash == hash_refresh_token(raw)))
+    session = db.scalar(
+        select(AuthSession)
+        .where(AuthSession.refresh_token_hash == hash_refresh_token(raw))
+        .with_for_update()
+    )
     if not session:
         return None
     if session.revoked_at or session.expires_at <= utcnow():
@@ -73,6 +111,7 @@ def rotate_session(db: Session, raw: str) -> tuple[User, AuthSession, str] | Non
         db.commit(); return None
     user = db.scalar(select(User).where(User.id == session.user_id))
     if not user or user.account_status != "ACTIVE": return None
+    session.last_used_at = utcnow()
     session.revoked_at = utcnow(); session.rotated_at = utcnow()
     replacement, replacement_raw = create_session_in_family(db, user, session)
     return user, replacement, replacement_raw

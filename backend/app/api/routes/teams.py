@@ -89,6 +89,11 @@ def remove_team_member(team_id: uuid.UUID, member_id: uuid.UUID, db: Session = D
     member = db.get(TeamMember, {"team_id": team.id, "user_id": member_id})
     if not member:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail={"code": "MEMBER_NOT_FOUND"})
+    if member.user_id == team.owner_user_id:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail={"code": "TEAM_OWNER_CANNOT_BE_REMOVED"},
+        )
     db.delete(member)
     db.commit()
     return team_read(team, db)

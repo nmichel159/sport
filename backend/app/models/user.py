@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 import uuid
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -66,6 +66,12 @@ class Organization(Base):
 
 class OrganizationMember(Base):
     __tablename__ = "organization_members"
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('ADMIN', 'MEMBER')",
+            name="ck_organization_members_role",
+        ),
+    )
 
     organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), primary_key=True)

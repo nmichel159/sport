@@ -203,7 +203,10 @@ export function ZoomableBracket({
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.modal}
           >
-            <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
+            <SafeAreaView
+              edges={['top', 'right', 'bottom', 'left']}
+              style={styles.safeArea}
+            >
               <View style={styles.header}>
                 <View style={styles.headerText}>
                   <Text numberOfLines={1} style={styles.title}>

@@ -33,7 +33,8 @@ def single_elimination_layout(
         raise ValueError("At least two participants are required")
 
     shuffled = list(participants)
-    rng = random.Random(seed)
+    # A reproducible layout is required; this value is not used as a secret.
+    rng = random.Random(seed)  # nosec B311
     rng.shuffle(shuffled)
     bracket_size = 1 << (len(shuffled) - 1).bit_length()
     bye_count = bracket_size - len(shuffled)
@@ -94,7 +95,8 @@ def balanced_round_robin_groups(
         raise ValueError("Each group requires at least two participants")
 
     shuffled = list(participants)
-    random.Random(seed).shuffle(shuffled)
+    # A reproducible group draw is required; this value is not a secret.
+    random.Random(seed).shuffle(shuffled)  # nosec B311
     groups: list[list[Participant]] = [[] for _ in range(group_count)]
     for index, participant in enumerate(shuffled):
         groups[index % group_count].append(participant)
