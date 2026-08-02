@@ -3,6 +3,8 @@ import type {
   AuthenticatedFetch,
   EventBracket,
   EventGroupStage,
+  MatchResultDetail,
+  MatchResultPayload,
   TournamentFormat,
 } from '../../../types/domain'
 
@@ -96,4 +98,30 @@ export async function requestParticipantGroupStage(
   const response = await fetcher(`/organizations/events/${eventId}/group-stage`)
   if (!response.ok) throw Error('PARTICIPANT_GROUP_STAGE_REQUEST_FAILED')
   return (await response.json()) as EventGroupStage
+}
+
+export async function requestMatchResult(
+  fetcher: AuthenticatedFetch,
+  organizationId: string,
+  eventId: string,
+  kind: 'BRACKET' | 'GROUP',
+  matchId: string,
+  payload?: MatchResultPayload,
+): Promise<MatchResultDetail> {
+  const parent = kind === 'BRACKET' ? 'bracket' : 'group-stage'
+  const response = await fetcher(
+    `/organizations/${organizationId}/events/${eventId}/${parent}/matches/${matchId}/result`,
+    {
+      method: payload ? 'PUT' : 'GET',
+      headers: payload ? { 'Content-Type': 'application/json' } : undefined,
+      body: payload ? JSON.stringify(payload) : undefined,
+    },
+  )
+  if (!response.ok) {
+    const detail = (await response.json().catch(() => null)) as {
+      detail?: { code?: string }
+    } | null
+    throw Error(detail?.detail?.code ?? 'MATCH_RESULT_REQUEST_FAILED')
+  }
+  return (await response.json()) as MatchResultDetail
 }

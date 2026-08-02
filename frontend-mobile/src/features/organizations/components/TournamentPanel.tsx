@@ -23,10 +23,8 @@ import {
   requestEventBracket,
   requestEventGroupStage,
 } from '../services/organizationApi'
-import {
-  GroupStageBoard,
-  type GroupScoreDraft,
-} from './GroupStageBoard'
+import { GroupStageBoard } from './GroupStageBoard'
+import { MatchResultModal } from './MatchResultModal'
 
 type Props = {
   event: ApiEvent
@@ -35,8 +33,6 @@ type Props = {
   onBack: () => void
   backLabel?: string
 }
-
-type ScoreDraft = { a: string; b: string }
 
 const errorMessages: Record<string, string> = {
   NOT_ENOUGH_PARTICIPANTS:
@@ -88,7 +84,7 @@ function SingleEliminationTournamentPanel({
 }: Props) {
   const accent = useAccentStyles()
   const [bracket, setBracket] = useState<EventBracket | null>(null)
-  const [drafts, setDrafts] = useState<Record<string, ScoreDraft>>({})
+  const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState('')
   const [error, setError] = useState('')
@@ -160,75 +156,6 @@ function SingleEliminationTournamentPanel({
       setBusyId('')
     }
   }
-
-  const saveScore = async (match: BracketMatch) => {
-    const draft = drafts[match.id]
-    const rawScoreA =
-      draft?.a ?? match.score_a?.toString() ?? ''
-    const rawScoreB =
-      draft?.b ?? match.score_b?.toString() ?? ''
-    const scoreA = Number(rawScoreA)
-    const scoreB = Number(rawScoreB)
-    if (
-      rawScoreA === '' ||
-      rawScoreB === '' ||
-      !Number.isInteger(scoreA) ||
-      !Number.isInteger(scoreB) ||
-      scoreA < 0 ||
-      scoreB < 0
-    ) {
-      setError('Zadaj platné nezáporné celé skóre.')
-      return
-    }
-
-    setBusyId(match.id)
-    setError('')
-    try {
-      const result = await requestEventBracket(
-        fetcher,
-        organizationId,
-        event.id,
-        'PUT',
-        `/matches/${match.id}`,
-        { score_a: scoreA, score_b: scoreB },
-      )
-      setBracket(result)
-      setDrafts({})
-    } catch (caught) {
-      showError(caught, 'Výsledok sa nepodarilo uložiť.')
-    } finally {
-      setBusyId('')
-    }
-  }
-
-  const updateDraft = (
-    match: BracketMatch,
-    side: keyof ScoreDraft,
-    value: string,
-  ) => {
-    if (!/^\d*$/.test(value)) return
-    setDrafts((current) => ({
-      ...current,
-      [match.id]: {
-        a:
-          side === 'a'
-            ? value
-            : current[match.id]?.a ?? match.score_a?.toString() ?? '',
-        b:
-          side === 'b'
-            ? value
-            : current[match.id]?.b ?? match.score_b?.toString() ?? '',
-      },
-    }))
-  }
-
-  const scoreValue = (
-    match: BracketMatch,
-    side: keyof ScoreDraft,
-  ) =>
-    drafts[match.id]?.[side] ??
-    (side === 'a' ? match.score_a : match.score_b)?.toString() ??
-    ''
 
   return (
     <View style={bracketStyles.screen}>
@@ -318,7 +245,16 @@ function SingleEliminationTournamentPanel({
                     match.participant_a && match.participant_b,
                   )
                   return (
-                    <View key={match.id} style={bracketStyles.match}>
+                    <Pressable
+                      key={match.id}
+                      disabled={!ready}
+                      onPress={() => setSelectedMatchId(match.id)}
+                      style={({ pressed }) => [
+                        bracketStyles.match,
+                        ready && bracketStyles.matchClickable,
+                        pressed && bracketStyles.matchPressed,
+                      ]}
+                    >
                       <View style={bracketStyles.matchMeta}>
                         <Text style={bracketStyles.matchLabel}>
                           ZÁPAS {match.position + 1}
@@ -355,35 +291,24 @@ function SingleEliminationTournamentPanel({
                               {participantName(match, side)}
                             </Text>
                             {ready ? (
-                              <AppTextInput
-                                value={scoreValue(match, side)}
-                                onChangeText={(value) =>
-                                  updateDraft(match, side, value)
-                                }
-                                keyboardType="number-pad"
-                                maxLength={3}
-                                placeholder="–"
-                                placeholderTextColor="#6f747d"
-                                style={bracketStyles.score}
-                              />
+                              <Text style={bracketStyles.readonlyScore}>
+                                {side === 'a'
+                                  ? match.score_a ?? '–'
+                                  : match.score_b ?? '–'}
+                              </Text>
                             ) : null}
                           </View>
                         )
                       })}
                       {ready ? (
-                        <Pressable
-                          style={bracketStyles.saveButton}
-                          disabled={busyId === match.id}
-                          onPress={() => void saveScore(match)}
-                        >
+                        <View style={bracketStyles.matchActionRow}>
                           <Text style={bracketStyles.saveButtonText}>
-                            {busyId === match.id
-                              ? 'Ukladám…'
-                              : match.winner_registration_id
-                                ? 'Upraviť výsledok'
-                                : 'Uložiť výsledok'}
+                            {match.winner_registration_id
+                              ? 'Upraviť detail zápasu'
+                              : 'Zapísať výsledok'}
                           </Text>
-                        </Pressable>
+                          <Text style={bracketStyles.matchChevron}>›</Text>
+                        </View>
                       ) : (
                         <Text style={bracketStyles.waiting}>
                           {match.is_bye
@@ -391,7 +316,7 @@ function SingleEliminationTournamentPanel({
                             : 'Čaká sa na predošlé kolo'}
                         </Text>
                       )}
-                    </View>
+                    </Pressable>
                   )
                 })}
               </View>
@@ -401,6 +326,23 @@ function SingleEliminationTournamentPanel({
         </ZoomableBracket>
       )}
       {error ? <Text style={formStyles.error}>{error}</Text> : null}
+      <MatchResultModal
+        visible={selectedMatchId !== null}
+        match={
+          selectedMatchId
+            ? { id: selectedMatchId, kind: 'BRACKET' }
+            : null
+        }
+        organizationId={organizationId}
+        eventId={event.id}
+        fetcher={fetcher}
+        onClose={() => setSelectedMatchId(null)}
+        onSaved={async () => {
+          setBracket(
+            await requestEventBracket(fetcher, organizationId, event.id),
+          )
+        }}
+      />
     </View>
   )
 }
@@ -432,9 +374,7 @@ function GroupTournamentPanel({
       Math.max(2, suggestedGroups * 2),
     ).toString(),
   )
-  const [drafts, setDrafts] = useState<
-    Record<string, GroupScoreDraft>
-  >({})
+  const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
   const [view, setView] = useState<'groups' | 'bracket'>('groups')
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState('')
@@ -506,70 +446,6 @@ function GroupTournamentPanel({
       )
     } catch (caught) {
       showError(caught, 'Skupiny sa nepodarilo vytvoriť.')
-    } finally {
-      setBusyId('')
-    }
-  }
-
-  const updateDraft = (
-    match: GroupMatch,
-    side: keyof GroupScoreDraft,
-    value: string,
-  ) => {
-    if (!/^\d*$/.test(value)) return
-    setDrafts((current) => ({
-      ...current,
-      [match.id]: {
-        a:
-          side === 'a'
-            ? value
-            : current[match.id]?.a ?? match.score_a?.toString() ?? '',
-        b:
-          side === 'b'
-            ? value
-            : current[match.id]?.b ?? match.score_b?.toString() ?? '',
-      },
-    }))
-  }
-
-  const saveScore = async (match: GroupMatch) => {
-    const draft = drafts[match.id]
-    const rawScoreA = draft?.a ?? match.score_a?.toString() ?? ''
-    const rawScoreB = draft?.b ?? match.score_b?.toString() ?? ''
-    const scoreA = Number(rawScoreA)
-    const scoreB = Number(rawScoreB)
-    if (
-      rawScoreA === '' ||
-      rawScoreB === '' ||
-      !Number.isInteger(scoreA) ||
-      !Number.isInteger(scoreB) ||
-      scoreA < 0 ||
-      scoreB < 0
-    ) {
-      setError('Zadaj platné nezáporné celé skóre.')
-      return
-    }
-
-    setBusyId(match.id)
-    setError('')
-    try {
-      setStage(
-        await requestEventGroupStage(
-          fetcher,
-          organizationId,
-          event.id,
-          'PUT',
-          `/matches/${match.id}`,
-          { score_a: scoreA, score_b: scoreB },
-        ),
-      )
-      setDrafts((current) => {
-        const next = { ...current }
-        delete next[match.id]
-        return next
-      })
-    } catch (caught) {
-      showError(caught, 'Výsledok sa nepodarilo uložiť.')
     } finally {
       setBusyId('')
     }
@@ -731,10 +607,7 @@ function GroupTournamentPanel({
           <GroupStageBoard
             stage={stage}
             editable={!stage.locked}
-            drafts={drafts}
-            busyId={busyId}
-            onDraftChange={updateDraft}
-            onSave={(match) => void saveScore(match)}
+            onOpenMatch={(match) => setSelectedMatchId(match.id)}
           />
 
           {stage.locked ? (
@@ -798,6 +671,24 @@ function GroupTournamentPanel({
         </>
       )}
       {error ? <Text style={formStyles.error}>{error}</Text> : null}
+      <MatchResultModal
+        visible={selectedMatchId !== null}
+        match={
+          selectedMatchId
+            ? { id: selectedMatchId, kind: 'GROUP' }
+            : null
+        }
+        organizationId={organizationId}
+        eventId={event.id}
+        fetcher={fetcher}
+        editable={!stage?.locked}
+        onClose={() => setSelectedMatchId(null)}
+        onSaved={async () => {
+          setStage(
+            await requestEventGroupStage(fetcher, organizationId, event.id),
+          )
+        }}
+      />
     </View>
   )
 }

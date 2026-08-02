@@ -14,6 +14,8 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key-at-least-32-bytes-long")
 from app.api.routes.organizations import (
     finalize_event_group_stage,
     generate_event_group_stage,
+    get_event_group_match_result,
+    update_event_group_match_result,
     update_event_group_match_score,
 )
 from app.core.database import Base
@@ -30,7 +32,12 @@ from app.models.user import (
     TournamentFormat,
     User,
 )
-from app.schemas.organization import EventMatchScoreUpdate, GroupStageCreate
+from app.schemas.organization import (
+    EventMatchScoreUpdate,
+    GroupStageCreate,
+    MatchResultScorerInput,
+    MatchResultUpdate,
+)
 from scripts.seed_demo_users import (
     NORO_GROUPS_EVENT_NAME,
     seed_noro_groups_tournament,
@@ -182,6 +189,131 @@ def test_group_results_persist_and_lock_when_bracket_is_created(tournament_db):
         )
     assert caught.value.status_code == 409
     assert caught.value.detail["code"] == "GROUP_STAGE_LOCKED"
+
+
+def test_group_match_detail_persists_scorers_mvp_and_schedule(tournament_db):
+    manager = User(
+        id=uuid.uuid4(),
+        email="result-manager@example.com",
+        nickname="result-manager",
+    )
+    player_a = User(
+        id=uuid.uuid4(),
+        email="scorer-a@example.com",
+        nickname="scorer-a",
+    )
+    player_b = User(
+        id=uuid.uuid4(),
+        email="scorer-b@example.com",
+        nickname="scorer-b",
+    )
+    organization = Organization(
+        id=uuid.uuid4(),
+        owner_user_id=manager.id,
+        name="Results organization",
+        slug="results-organization",
+    )
+    tournament_format = TournamentFormat(
+        id=uuid.uuid4(),
+        code="GROUPS_THEN_ELIMINATION",
+        name="Groups then elimination",
+    )
+    event = OrganizationEvent(
+        id=uuid.uuid4(),
+        organization_id=organization.id,
+        created_by_user_id=manager.id,
+        name="Football results",
+        sport="Futbal",
+        participation_type="INDIVIDUAL",
+        format_id=tournament_format.id,
+    )
+    tournament_db.add_all(
+        [
+            manager,
+            player_a,
+            player_b,
+            organization,
+            tournament_format,
+            event,
+            OrganizationMember(
+                organization_id=organization.id,
+                user_id=manager.id,
+                role="ADMIN",
+            ),
+            OrganizationEventRegistration(
+                id=uuid.uuid4(), event_id=event.id, user_id=player_a.id
+            ),
+            OrganizationEventRegistration(
+                id=uuid.uuid4(), event_id=event.id, user_id=player_b.id
+            ),
+        ]
+    )
+    tournament_db.commit()
+    generated = generate_event_group_stage(
+        organization.id,
+        event.id,
+        GroupStageCreate(group_count=1, advancing_count=2),
+        tournament_db,
+        manager,
+    )
+    match = generated.groups[0].matches[0]
+
+    with pytest.raises(HTTPException) as mismatch:
+        update_event_group_match_result(
+            organization.id,
+            event.id,
+            match.id,
+            MatchResultUpdate(
+                score_a=2,
+                score_b=1,
+                scorers=[
+                    MatchResultScorerInput(user_id=player_a.id, goals=1)
+                ],
+            ),
+            tournament_db,
+            manager,
+        )
+    assert mismatch.value.detail["code"] == "SCORER_TOTAL_MISMATCH"
+    tournament_db.rollback()
+
+    if match.participant_a.name == "scorer-a":
+        score_a, score_b = 2, 1
+    else:
+        score_a, score_b = 1, 2
+
+    updated = update_event_group_match_result(
+        organization.id,
+        event.id,
+        match.id,
+        MatchResultUpdate(
+            score_a=score_a,
+            score_b=score_b,
+            pitch="2",
+            scheduled_start="10:20",
+            mvp_user_id=player_a.id,
+            scorers=[
+                MatchResultScorerInput(user_id=player_a.id, goals=2),
+                MatchResultScorerInput(user_id=player_b.id, goals=1),
+            ],
+        ),
+        tournament_db,
+        manager,
+    )
+    assert updated.score_a == score_a
+    assert updated.score_b == score_b
+    assert updated.pitch == "2"
+    assert updated.mvp_user_id == player_a.id
+    assert sum(scorer.goals for scorer in updated.scorers) == 3
+
+
+    loaded = get_event_group_match_result(
+        organization.id, event.id, match.id, tournament_db, manager
+    )
+    assert loaded.scheduled_start.hour == 10
+    assert {player.name for player in loaded.players} == {
+        "scorer-a",
+        "scorer-b",
+    }
 
 
 def test_noro_demo_seed_creates_complete_groups_and_ready_bracket(

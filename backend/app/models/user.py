@@ -1,8 +1,8 @@
-from datetime import date, datetime
+from datetime import date, datetime, time
 
 import uuid
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, Time, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -91,19 +91,86 @@ class TournamentFormat(Base):
 
 class OrganizationEvent(Base):
     __tablename__ = "organization_events"
+    __table_args__ = (
+        CheckConstraint(
+            "event_type IN ('TOURNAMENT', 'LEAGUE')",
+            name="ck_organization_events_event_type",
+        ),
+        Index("ix_organization_events_event_type", "event_type"),
+        Index("ix_organization_events_region_city", "region", "city"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
     organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
     created_by_user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"))
     name: Mapped[str] = mapped_column(String(180))
+    event_type: Mapped[str] = mapped_column(String(20), default="TOURNAMENT")
     sport: Mapped[str] = mapped_column(String(80), default="")
     participation_type: Mapped[str] = mapped_column(String(20), default="TEAM")
     format_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("tournament_formats.id", ondelete="RESTRICT"), nullable=True)
     event_date: Mapped[date | None] = mapped_column(nullable=True)
+    event_time: Mapped[time | None] = mapped_column(Time, nullable=True)
+    region: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    city_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    venue: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    cover_image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    registration_open: Mapped[bool] = mapped_column(Boolean, default=True)
+    xp_points: Mapped[int | None] = mapped_column(Integer, nullable=True)
     location: Mapped[str | None] = mapped_column(String(180), nullable=True)
     fee: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class OrganizationEventCategory(Base):
+    __tablename__ = "organization_event_categories"
+    __table_args__ = (
+        UniqueConstraint(
+            "event_id",
+            "age_group",
+            "team_format",
+            "gender_category",
+            name="uq_event_category_taxonomy",
+        ),
+        CheckConstraint(
+            "age_group IN ('kids', 'junior', 'open', 'veterani')",
+            name="ck_event_category_age_group",
+        ),
+        CheckConstraint(
+            "team_format IN ('1v1', '2v2', '3v3', '3v3g', '4v4', '5v5')",
+            name="ck_event_category_team_format",
+        ),
+        CheckConstraint(
+            "gender_category IN ('muzi', 'zeny', 'mix')",
+            name="ck_event_category_gender",
+        ),
+        CheckConstraint("fee >= 0", name="ck_event_category_fee"),
+        CheckConstraint(
+            "capacity > 0",
+            name="ck_event_category_capacity",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=func.gen_random_uuid(),
+    )
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organization_events.id", ondelete="CASCADE"),
+        index=True,
+    )
+    age_group: Mapped[str] = mapped_column(String(20))
+    team_format: Mapped[str] = mapped_column(String(20))
+    gender_category: Mapped[str] = mapped_column(String(20))
+    fee: Mapped[float] = mapped_column(Numeric(10, 2))
+    capacity: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
 
 
 class OrganizationEventRegistration(Base):
@@ -129,7 +196,21 @@ class OrganizationEventMatch(Base):
     score_a: Mapped[int | None] = mapped_column(Integer, nullable=True)
     score_b: Mapped[int | None] = mapped_column(Integer, nullable=True)
     winner_registration_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("organization_event_registrations.id", ondelete="SET NULL"), nullable=True)
+    pitch: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    scheduled_start: Mapped[time | None] = mapped_column(Time, nullable=True)
+    mvp_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class OrganizationEventMatchScorer(Base):
+    __tablename__ = "organization_event_match_scorers"
+    __table_args__ = (
+        CheckConstraint("goals > 0", name="ck_event_match_scorer_goals"),
+    )
+
+    match_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organization_event_matches.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), primary_key=True)
+    goals: Mapped[int] = mapped_column(Integer)
 
 
 class OrganizationEventGroupStage(Base):
@@ -178,8 +259,22 @@ class OrganizationEventGroupMatch(Base):
     score_a: Mapped[int | None] = mapped_column(Integer, nullable=True)
     score_b: Mapped[int | None] = mapped_column(Integer, nullable=True)
     winner_registration_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("organization_event_registrations.id", ondelete="SET NULL"), nullable=True)
+    pitch: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    scheduled_start: Mapped[time | None] = mapped_column(Time, nullable=True)
+    mvp_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class OrganizationEventGroupMatchScorer(Base):
+    __tablename__ = "organization_event_group_match_scorers"
+    __table_args__ = (
+        CheckConstraint("goals > 0", name="ck_event_group_match_scorer_goals"),
+    )
+
+    match_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organization_event_group_matches.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), primary_key=True)
+    goals: Mapped[int] = mapped_column(Integer)
 
 
 class AuthIdentity(Base):

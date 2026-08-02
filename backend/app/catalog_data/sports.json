@@ -1,7 +1,12 @@
 [
   {"code":"FOOTBALL","name":"Futbal"},
-  {"code":"BASKETBALL","name":"Basketbal"},
+  {"code":"FLOORBALL","name":"Florbal"},
+  {"code":"BASKETBALL","name":"Basketbal 3x3"},
   {"code":"VOLLEYBALL","name":"Volejbal"},
-  {"code":"CHESS","name":"Šach"},
-  {"code":"TABLE_TENNIS","name":"Stolný tenis"}
+  {"code":"RUNNING","name":"Beh"},
+  {"code":"BADMINTON","name":"Bedminton"},
+  {"code":"TENNIS","name":"Tenis"},
+  {"code":"TABLE_TENNIS","name":"Stolný tenis"},
+  {"code":"SPORT_GAMES","name":"3x3sportgames"},
+  {"code":"PICKLEBALL","name":"Pickleball"}
 ]

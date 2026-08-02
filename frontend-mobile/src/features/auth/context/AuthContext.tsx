@@ -1,7 +1,9 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react'
@@ -42,6 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [signingIn, setSigningIn] = useState(false)
+  const sessionRef = useRef<Session | null>(null)
   const refreshInFlight = useRef<Promise<Session> | null>(null)
 
   const persistUser = async (nextUser: User) => {
@@ -50,6 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const persistSession = async (session: Session) => {
+    sessionRef.current = session
     await storeRefreshToken(session.refresh_token)
     await persistUser(session.user)
   }
@@ -70,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           error instanceof InvalidRefreshTokenError &&
           (await readRefreshToken()) === token
         ) {
+          sessionRef.current = null
           await clearStoredSession()
           setUser(null)
         }
@@ -84,6 +89,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refreshInFlight.current = null
     }
   }
+
+  const getSession = () =>
+    sessionRef.current
+      ? Promise.resolve(sessionRef.current)
+      : refreshSession()
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -128,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const completeOnboarding = async (data: OnboardingData) => {
-    const session = await refreshSession()
+    const session = await getSession()
     const nextUser = await saveOnboarding(
       session.access_token,
       data,
@@ -137,34 +147,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await persistUser(nextUser)
   }
 
-  const authenticatedFetch: AuthContextValue['authenticatedFetch'] = async (
-    path,
-    init = {},
-  ) => {
-    const session = await refreshSession()
-    return authenticatedRequest(session.access_token, path, init)
+  // Keep the latest implementation in a ref so the stable callback
+  // returned by useCallback always calls up-to-date logic without
+  // changing its own identity. This prevents useEffect loops in
+  // consumers that list `authenticatedFetch` / `fetcher` as a dep.
+  const authenticatedFetchRef = useRef<AuthContextValue['authenticatedFetch']>(
+    null!,
+  )
+  authenticatedFetchRef.current = async (path, init = {}) => {
+    const session = await getSession()
+    const response = await authenticatedRequest(
+      session.access_token,
+      path,
+      init,
+    )
+
+    if (response.status !== 401) return response
+
+    const newerSession = sessionRef.current
+    const retrySession =
+      newerSession && newerSession.access_token !== session.access_token
+        ? newerSession
+        : await refreshSession()
+    return authenticatedRequest(retrySession.access_token, path, init)
   }
+
+  // Stable reference – never changes across renders.
+  const authenticatedFetch = useCallback<
+    AuthContextValue['authenticatedFetch']
+  >((path, init) => authenticatedFetchRef.current(path, init), [])
 
   const signOut = async () => {
     const token = await readRefreshToken()
-    if (token) await logOut(token)
-    await clearStoredSession()
-    setUser(null)
+    try {
+      if (token) await logOut(token)
+    } finally {
+      sessionRef.current = null
+      await clearStoredSession()
+      setUser(null)
+    }
   }
 
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      loading,
+      signingIn,
+      signIn,
+      developmentSignIn,
+      signOut,
+      completeOnboarding,
+      authenticatedFetch,
+    }),
+    // authenticatedFetch is stable; the others legitimately change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [user, loading, signingIn],
+  )
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        signingIn,
-        signIn,
-        developmentSignIn,
-        signOut,
-        completeOnboarding,
-        authenticatedFetch,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   )

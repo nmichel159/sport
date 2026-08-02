@@ -109,6 +109,8 @@ export const bracketStyles = StyleSheet.create({
     padding: 10,
     gap: 7,
   },
+  matchClickable: { borderColor: '#444850' },
+  matchPressed: { opacity: 0.72, transform: [{ scale: 0.99 }] },
   matchMeta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -187,6 +189,14 @@ export const bracketStyles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '900',
   },
+  matchActionRow: {
+    minHeight: 31,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 5,
+  },
+  matchChevron: { color: '#ffd400', fontSize: 23, lineHeight: 24 },
   waiting: {
     color: '#777c85',
     fontSize: 10,

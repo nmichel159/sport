@@ -104,6 +104,7 @@ export const formStyles = StyleSheet.create({
   eventModalSheet: {
     width: '100%',
     maxWidth: 520,
+    maxHeight: '94%',
     backgroundColor: '#17181c',
     borderRadius: 24,
     borderColor: '#2b2e34',
@@ -128,6 +129,24 @@ export const formStyles = StyleSheet.create({
     backgroundColor: '#30333a',
   },
   eventModalCloseText: { color: '#f3f4f6', fontSize: 24, lineHeight: 28 },
+  eventSectionHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  eventSectionCopy: { flex: 1, gap: 2 },
+  eventCategoryCard: {
+    gap: 10,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#343841',
+    backgroundColor: '#111216',
+  },
+  eventRemoveText: { color: '#ff8f87', fontSize: 13, fontWeight: '700' },
+  eventNumberRow: { flexDirection: 'row', gap: 10 },
+  eventNumberField: { flex: 1, gap: 5 },
   modalTitle: { color: '#f3f4f6', fontSize: 20, fontWeight: '800' },
   modalHint: { color: '#9aa0a8', fontSize: 13 },
   pickerLabel: {

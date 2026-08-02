@@ -16,12 +16,28 @@ async function readSession(response: Response) {
 }
 
 export class InvalidRefreshTokenError extends Error {}
+export class AuthServiceError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly retryAfter: string | null,
+  ) {
+    super(`AUTH_SERVICE_ERROR_${status}`)
+  }
+}
 
 export async function refreshAuthSession(refreshToken: string) {
   const response = await postAuth('refresh', {
     refresh_token: refreshToken,
   })
-  if (!response.ok) throw new InvalidRefreshTokenError('AUTH_REQUIRED')
+  if (response.status === 401) {
+    throw new InvalidRefreshTokenError('AUTH_REQUIRED')
+  }
+  if (!response.ok) {
+    throw new AuthServiceError(
+      response.status,
+      response.headers.get('Retry-After'),
+    )
+  }
   return (await response.json()) as Session
 }
 

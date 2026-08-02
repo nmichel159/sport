@@ -155,7 +155,7 @@ def development_login(
 
 
 @router.post("/refresh", response_model=AuthResponse)
-@limiter.limit("30/minute")
+@limiter.limit("120/minute")
 def refresh(
     payload: RefreshRequest,
     request: Request,

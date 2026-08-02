@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -11,20 +11,25 @@ from app.core.security import get_current_active_user
 from app.models.user import (
     Organization,
     OrganizationEvent,
+    OrganizationEventCategory,
     OrganizationEventGroup,
     OrganizationEventGroupMatch,
+    OrganizationEventGroupMatchScorer,
     OrganizationEventGroupMember,
     OrganizationEventGroupStage,
     OrganizationEventMatch,
+    OrganizationEventMatchScorer,
     OrganizationEventRegistration,
     OrganizationMember,
     Team,
+    TeamMember,
     TournamentFormat,
     User,
 )
 from app.schemas.organization import (
     BracketParticipantRead,
     EventBracketRead,
+    EventCategoryRead,
     EventCreate,
     EventGroupRead,
     EventGroupStageRead,
@@ -32,6 +37,10 @@ from app.schemas.organization import (
     GroupParticipantRead,
     GroupStageCreate,
     GroupStandingRead,
+    MatchResultPlayerRead,
+    MatchResultRead,
+    MatchResultScorerRead,
+    MatchResultUpdate,
     EventMatchRead,
     EventMatchScoreUpdate,
     EventRead,
@@ -53,6 +62,13 @@ from app.services.brackets import (
 )
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
+
+GOAL_SPORTS = {"Futbal", "Florbal"}
+TEAM_SPORTS = GOAL_SPORTS | {
+    "Basketbal 3x3",
+    "Volejbal",
+    "3x3sportgames",
+}
 
 
 def registration_rows(event_id: uuid.UUID, db: Session):
@@ -106,18 +122,43 @@ def event_read(event: OrganizationEvent, db: Session) -> EventRead:
     tournament_format = (
         db.get(TournamentFormat, event.format_id) if event.format_id else None
     )
+    categories = db.scalars(
+        select(OrganizationEventCategory)
+        .where(OrganizationEventCategory.event_id == event.id)
+        .order_by(OrganizationEventCategory.created_at)
+    ).all()
     return EventRead(
         id=event.id,
         name=event.name,
+        event_type=event.event_type,
         sport=event.sport,
         participation_type=event.participation_type,
         format_id=event.format_id,
         format_code=tournament_format.code if tournament_format else None,
         format_name=tournament_format.name if tournament_format else None,
         event_date=event.event_date,
+        event_time=event.event_time,
+        region=event.region,
+        city_id=event.city_id,
+        city=event.city,
+        venue=event.venue,
+        cover_image_url=event.cover_image_url,
+        registration_open=event.registration_open,
+        xp_points=event.xp_points,
         location=event.location,
         fee=event.fee,
         description=event.description,
+        categories=[
+            EventCategoryRead(
+                id=category.id,
+                age_group=category.age_group,
+                team_format=category.team_format,
+                gender_category=category.gender_category,
+                fee=category.fee,
+                capacity=category.capacity,
+            )
+            for category in categories
+        ],
         registrations=[
             EventRegistrationRead(
                 id=row[0].id,
@@ -486,10 +527,187 @@ def clear_descendant_results(
     following.score_a = None
     following.score_b = None
     following.winner_registration_id = None
+    following.mvp_user_id = None
+    db.execute(
+        delete(OrganizationEventMatchScorer).where(
+            OrganizationEventMatchScorer.match_id == following.id
+        )
+    )
     if match.position % 2 == 0:
         following.participant_a_registration_id = None
     else:
         following.participant_b_registration_id = None
+
+
+def match_players(
+    registration_ids: tuple[uuid.UUID, uuid.UUID],
+    db: Session,
+) -> list[MatchResultPlayerRead]:
+    result: list[MatchResultPlayerRead] = []
+    for side, registration_id in zip(("A", "B"), registration_ids):
+        registration = db.get(OrganizationEventRegistration, registration_id)
+        if not registration:
+            continue
+        if registration.team_id:
+            rows = db.execute(
+                select(User.id, User.nickname, User.display_name)
+                .join(TeamMember, TeamMember.user_id == User.id)
+                .where(TeamMember.team_id == registration.team_id)
+                .order_by(User.nickname, User.display_name, User.id)
+            ).all()
+        elif registration.user_id:
+            rows = db.execute(
+                select(User.id, User.nickname, User.display_name).where(
+                    User.id == registration.user_id
+                )
+            ).all()
+        else:
+            rows = []
+        for row in rows:
+            result.append(
+                MatchResultPlayerRead(
+                    id=row.id,
+                    name=row.nickname or row.display_name or "Hráč",
+                    registration_id=registration_id,
+                    side=side,
+                )
+            )
+    return result
+
+
+def match_result_read(
+    event: OrganizationEvent,
+    match: OrganizationEventMatch | OrganizationEventGroupMatch,
+    kind: str,
+    db: Session,
+) -> MatchResultRead:
+    registration_ids = (
+        match.participant_a_registration_id,
+        match.participant_b_registration_id,
+    )
+    if not all(registration_ids):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "MATCH_NOT_READY"},
+        )
+    names = {
+        row[0].id: registration_name(row)
+        for row in registration_rows(event.id, db)
+    }
+    players = match_players(registration_ids, db)
+    player_names = {player.id: player.name for player in players}
+    scorer_model = (
+        OrganizationEventMatchScorer
+        if kind == "BRACKET"
+        else OrganizationEventGroupMatchScorer
+    )
+    scorers = db.scalars(
+        select(scorer_model)
+        .where(scorer_model.match_id == match.id)
+        .order_by(scorer_model.goals.desc(), scorer_model.user_id)
+    ).all()
+    return MatchResultRead(
+        match_id=match.id,
+        kind=kind,
+        sport=event.sport,
+        supports_scorers=event.sport in GOAL_SPORTS,
+        supports_mvp=event.sport in TEAM_SPORTS,
+        participant_a=BracketParticipantRead(
+            registration_id=registration_ids[0],
+            name=names.get(registration_ids[0], "Účastník A"),
+        ),
+        participant_b=BracketParticipantRead(
+            registration_id=registration_ids[1],
+            name=names.get(registration_ids[1], "Účastník B"),
+        ),
+        score_a=match.score_a,
+        score_b=match.score_b,
+        pitch=match.pitch,
+        scheduled_start=match.scheduled_start,
+        players=players,
+        scorers=[
+            MatchResultScorerRead(
+                user_id=scorer.user_id,
+                name=player_names.get(scorer.user_id, "Hráč"),
+                goals=scorer.goals,
+            )
+            for scorer in scorers
+        ],
+        mvp_user_id=match.mvp_user_id,
+    )
+
+
+def apply_match_result_details(
+    event: OrganizationEvent,
+    match: OrganizationEventMatch | OrganizationEventGroupMatch,
+    kind: str,
+    payload: MatchResultUpdate,
+    db: Session,
+) -> None:
+    players = match_players(
+        (
+            match.participant_a_registration_id,
+            match.participant_b_registration_id,
+        ),
+        db,
+    )
+    player_by_id = {player.id: player for player in players}
+    scorer_ids = [scorer.user_id for scorer in payload.scorers]
+    if len(set(scorer_ids)) != len(scorer_ids):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "DUPLICATE_SCORER"},
+        )
+    if any(user_id not in player_by_id for user_id in scorer_ids):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "SCORER_NOT_IN_MATCH"},
+        )
+    if payload.mvp_user_id and payload.mvp_user_id not in player_by_id:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "MVP_NOT_IN_MATCH"},
+        )
+    if event.sport not in GOAL_SPORTS and payload.scorers:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "SCORERS_NOT_SUPPORTED"},
+        )
+    if event.sport not in TEAM_SPORTS and payload.mvp_user_id:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "MVP_NOT_SUPPORTED"},
+        )
+    if event.sport in GOAL_SPORTS:
+        goal_totals = {"A": 0, "B": 0}
+        for scorer in payload.scorers:
+            goal_totals[player_by_id[scorer.user_id].side] += scorer.goals
+        if (
+            goal_totals["A"] != payload.score_a
+            or goal_totals["B"] != payload.score_b
+        ):
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "SCORER_TOTAL_MISMATCH"},
+            )
+
+    scorer_model = (
+        OrganizationEventMatchScorer
+        if kind == "BRACKET"
+        else OrganizationEventGroupMatchScorer
+    )
+    db.execute(delete(scorer_model).where(scorer_model.match_id == match.id))
+    for scorer in payload.scorers:
+        db.add(
+            scorer_model(
+                match_id=match.id,
+                user_id=scorer.user_id,
+                goals=scorer.goals,
+            )
+        )
+    match.pitch = payload.pitch.strip() if payload.pitch else None
+    match.scheduled_start = payload.scheduled_start
+    match.mvp_user_id = payload.mvp_user_id
 
 
 def persist_event_bracket(
@@ -825,19 +1043,42 @@ def create_event(
             detail={"code": "INVALID_EVENT_SPORT"},
         )
     tournament_format = selected_format(payload.format_id, db)
-    db.add(
-        OrganizationEvent(
-            organization_id=organization.id,
-            created_by_user_id=user.id,
-            name=name,
-            sport=sport,
-            participation_type=payload.participation_type,
-            format_id=tournament_format.id,
-            event_date=payload.event_date,
-            location=(payload.location or "").strip() or None,
-            fee=payload.fee,
-            description=(payload.description or "").strip() or None,
-        )
+    event = OrganizationEvent(
+        organization_id=organization.id,
+        created_by_user_id=user.id,
+        name=name,
+        event_type=payload.event_type,
+        sport=sport,
+        participation_type=payload.participation_type,
+        format_id=tournament_format.id,
+        event_date=payload.event_date,
+        event_time=payload.event_time,
+        region=payload.region.strip(),
+        city_id=payload.city_id,
+        city=(payload.city or "").strip() or None,
+        venue=(payload.venue or "").strip() or None,
+        cover_image_url=(payload.cover_image_url or "").strip() or None,
+        registration_open=True,
+        xp_points=None,
+        # Keep the legacy summary fields populated for existing discovery UI.
+        location=(payload.venue or payload.city or "").strip() or None,
+        fee=min(category.fee for category in payload.categories),
+        description=(payload.description or "").strip() or None,
+    )
+    db.add(event)
+    db.flush()
+    db.add_all(
+        [
+            OrganizationEventCategory(
+                event_id=event.id,
+                age_group=category.age_group,
+                team_format=category.team_format,
+                gender_category=category.gender_category,
+                fee=category.fee,
+                capacity=category.capacity,
+            )
+            for category in payload.categories
+        ]
     )
     db.commit()
     return organization_read(organization, db)
@@ -886,13 +1127,42 @@ def update_event(
             detail={"code": "EVENT_PARTICIPATION_TYPE_LOCKED"},
         )
     event.name = name
+    event.event_type = payload.event_type
     event.sport = sport
     event.participation_type = payload.participation_type
     event.format_id = tournament_format.id
     event.event_date = payload.event_date
-    event.location = (payload.location or "").strip() or None
-    event.fee = payload.fee
+    event.event_time = payload.event_time
+    event.region = payload.region.strip()
+    event.city_id = payload.city_id
+    event.city = (payload.city or "").strip() or None
+    event.venue = (payload.venue or "").strip() or None
+    event.cover_image_url = (
+        (payload.cover_image_url or "").strip() or None
+    )
+    event.location = (
+        payload.venue or payload.city or ""
+    ).strip() or None
+    event.fee = min(category.fee for category in payload.categories)
     event.description = (payload.description or "").strip() or None
+    db.execute(
+        delete(OrganizationEventCategory).where(
+            OrganizationEventCategory.event_id == event.id
+        )
+    )
+    db.add_all(
+        [
+            OrganizationEventCategory(
+                event_id=event.id,
+                age_group=category.age_group,
+                team_format=category.team_format,
+                gender_category=category.gender_category,
+                fee=category.fee,
+                capacity=category.capacity,
+            )
+            for category in payload.categories
+        ]
+    )
     db.commit()
     return organization_read(organization, db)
 
@@ -1068,6 +1338,55 @@ def update_event_group_match_score(
     )
     db.commit()
     return group_stage_read(event, db)
+
+
+@router.get(
+    "/{organization_id}/events/{event_id}/group-stage/matches/{match_id}/result",
+    response_model=MatchResultRead,
+)
+def get_event_group_match_result(
+    organization_id: uuid.UUID,
+    event_id: uuid.UUID,
+    match_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    _, event = manageable_event(organization_id, event_id, user, db)
+    match = db.get(OrganizationEventGroupMatch, match_id)
+    group = db.get(OrganizationEventGroup, match.group_id) if match else None
+    if not match or not group or group.event_id != event.id:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={"code": "GROUP_MATCH_NOT_FOUND"},
+        )
+    return match_result_read(event, match, "GROUP", db)
+
+
+@router.put(
+    "/{organization_id}/events/{event_id}/group-stage/matches/{match_id}/result",
+    response_model=MatchResultRead,
+)
+def update_event_group_match_result(
+    organization_id: uuid.UUID,
+    event_id: uuid.UUID,
+    match_id: uuid.UUID,
+    payload: MatchResultUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    _, event = manageable_event(organization_id, event_id, user, db)
+    match = db.get(OrganizationEventGroupMatch, match_id)
+    group = db.get(OrganizationEventGroup, match.group_id) if match else None
+    if not match or not group or group.event_id != event.id:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={"code": "GROUP_MATCH_NOT_FOUND"},
+        )
+    apply_match_result_details(event, match, "GROUP", payload, db)
+    update_event_group_match_score(
+        organization_id, event_id, match_id, payload, db, user
+    )
+    return match_result_read(event, match, "GROUP", db)
 
 
 @router.post(
@@ -1298,6 +1617,59 @@ def update_event_match_score(
     place_winner(match, match.winner_registration_id, db)
     db.commit()
     return bracket_read(event, db)
+
+
+@router.get(
+    "/{organization_id}/events/{event_id}/bracket/matches/{match_id}/result",
+    response_model=MatchResultRead,
+)
+def get_event_match_result(
+    organization_id: uuid.UUID,
+    event_id: uuid.UUID,
+    match_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    _, event = manageable_event(organization_id, event_id, user, db)
+    match = db.get(OrganizationEventMatch, match_id)
+    if not match or match.event_id != event.id:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail={"code": "MATCH_NOT_FOUND"}
+        )
+    return match_result_read(event, match, "BRACKET", db)
+
+
+@router.put(
+    "/{organization_id}/events/{event_id}/bracket/matches/{match_id}/result",
+    response_model=MatchResultRead,
+)
+def update_event_match_result(
+    organization_id: uuid.UUID,
+    event_id: uuid.UUID,
+    match_id: uuid.UUID,
+    payload: MatchResultUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    _, event = manageable_event(organization_id, event_id, user, db)
+    match = db.get(OrganizationEventMatch, match_id)
+    if not match or match.event_id != event.id:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail={"code": "MATCH_NOT_FOUND"}
+        )
+    if (
+        not match.participant_a_registration_id
+        or not match.participant_b_registration_id
+    ):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "MATCH_NOT_READY"},
+        )
+    apply_match_result_details(event, match, "BRACKET", payload, db)
+    update_event_match_score(
+        organization_id, event_id, match_id, payload, db, user
+    )
+    return match_result_read(event, match, "BRACKET", db)
 
 
 @router.delete(

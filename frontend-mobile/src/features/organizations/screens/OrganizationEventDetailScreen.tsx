@@ -36,18 +36,43 @@ export function OrganizationEventDetailScreen({
   const [message, setMessage] = useState('')
 
   const save = async () => {
+    if (
+      !event.event_date ||
+      !event.region ||
+      !event.categories.length ||
+      (event.event_type === 'TOURNAMENT' && !event.event_time)
+    ) {
+      setMessage(
+        'Starší event nemá všetky nové povinné údaje. Vytvor ho cez nový formulár.',
+      )
+      return
+    }
     setSaving(true)
     setMessage('')
 
     try {
       await onSave(event.id, {
         name,
+        event_type: event.event_type,
         sport: event.sport,
         participation_type: event.participation_type,
         format_id: event.format_id,
         event_date: event.event_date,
-        location: event.location,
-        fee: event.fee,
+        event_time: event.event_time,
+        region: event.region,
+        city_id: event.city_id,
+        city: event.city,
+        venue: event.venue,
+        cover_image_url: event.cover_image_url,
+        categories: event.categories.map(
+          ({ age_group, team_format, gender_category, fee, capacity }) => ({
+            age_group,
+            team_format,
+            gender_category,
+            fee,
+            capacity,
+          }),
+        ),
         description,
       })
       setMessage('Základné údaje sú uložené.')

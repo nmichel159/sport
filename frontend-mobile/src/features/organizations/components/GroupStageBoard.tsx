@@ -1,42 +1,21 @@
 import { Pressable, Text, View } from 'react-native'
-import { AppTextInput } from '../../../components/AppTextInput'
 import { bracketStyles } from '../../../styles/bracketStyles'
 import type {
   EventGroupStage,
   GroupMatch,
 } from '../../../types/domain'
 
-export type GroupScoreDraft = { a: string; b: string }
-
 type Props = {
   stage: EventGroupStage
   editable?: boolean
-  drafts?: Record<string, GroupScoreDraft>
-  busyId?: string
-  onDraftChange?: (
-    match: GroupMatch,
-    side: keyof GroupScoreDraft,
-    value: string,
-  ) => void
-  onSave?: (match: GroupMatch) => void
+  onOpenMatch?: (match: GroupMatch) => void
 }
 
 export function GroupStageBoard({
   stage,
   editable = false,
-  drafts = {},
-  busyId = '',
-  onDraftChange,
-  onSave,
+  onOpenMatch,
 }: Props) {
-  const scoreValue = (
-    match: GroupMatch,
-    side: keyof GroupScoreDraft,
-  ) =>
-    drafts[match.id]?.[side] ??
-    (side === 'a' ? match.score_a : match.score_b)?.toString() ??
-    ''
-
   return (
     <View style={bracketStyles.groupCollection}>
       {stage.groups.map((group) => (
@@ -79,10 +58,7 @@ export function GroupStageBoard({
                 ]}
               >
                 <Text style={bracketStyles.tableRank}>{standing.rank}</Text>
-                <Text
-                  numberOfLines={1}
-                  style={bracketStyles.tableName}
-                >
+                <Text numberOfLines={1} style={bracketStyles.tableName}>
                   {standing.participant.name}
                   {standing.qualified ? '  ✓' : ''}
                 </Text>
@@ -102,7 +78,16 @@ export function GroupStageBoard({
               const resultSaved =
                 match.score_a !== null && match.score_b !== null
               return (
-                <View key={match.id} style={bracketStyles.groupMatch}>
+                <Pressable
+                  key={match.id}
+                  disabled={!onOpenMatch}
+                  onPress={() => onOpenMatch?.(match)}
+                  style={({ pressed }) => [
+                    bracketStyles.groupMatch,
+                    onOpenMatch && bracketStyles.matchClickable,
+                    pressed && bracketStyles.matchPressed,
+                  ]}
+                >
                   <Text style={bracketStyles.matchLabel}>
                     ZÁPAS {match.position + 1}
                   </Text>
@@ -122,50 +107,30 @@ export function GroupStageBoard({
                           isWinner && bracketStyles.participantWinner,
                         ]}
                       >
-                        <Text
-                          numberOfLines={1}
-                          style={bracketStyles.participantName}
-                        >
+                        <Text style={bracketStyles.participantName}>
                           {participant.name}
                         </Text>
-                        {editable ? (
-                          <AppTextInput
-                            value={scoreValue(match, side)}
-                            onChangeText={(value) =>
-                              onDraftChange?.(match, side, value)
-                            }
-                            keyboardType="number-pad"
-                            maxLength={3}
-                            placeholder="–"
-                            placeholderTextColor="#6f747d"
-                            style={bracketStyles.score}
-                          />
-                        ) : (
-                          <Text style={bracketStyles.readonlyScore}>
-                            {side === 'a'
-                              ? match.score_a ?? '–'
-                              : match.score_b ?? '–'}
-                          </Text>
-                        )}
+                        <Text style={bracketStyles.readonlyScore}>
+                          {side === 'a'
+                            ? match.score_a ?? '–'
+                            : match.score_b ?? '–'}
+                        </Text>
                       </View>
                     )
                   })}
-                  {editable ? (
-                    <Pressable
-                      style={bracketStyles.saveButton}
-                      disabled={busyId === match.id}
-                      onPress={() => onSave?.(match)}
-                    >
+                  {onOpenMatch ? (
+                    <View style={bracketStyles.matchActionRow}>
                       <Text style={bracketStyles.saveButtonText}>
-                        {busyId === match.id
-                          ? 'Ukladám…'
+                        {!editable
+                          ? 'Zobraziť detail zápasu'
                           : resultSaved
-                            ? 'Upraviť výsledok'
-                            : 'Uložiť výsledok'}
+                          ? 'Upraviť detail zápasu'
+                          : 'Zapísať výsledok'}
                       </Text>
-                    </Pressable>
+                      <Text style={bracketStyles.matchChevron}>›</Text>
+                    </View>
                   ) : null}
-                </View>
+                </Pressable>
               )
             })}
           </View>

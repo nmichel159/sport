@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, ScrollView, Text } from 'react-native'
 import { SystemModal } from '../../../system/SystemModal'
 import { formStyles } from '../../../styles/formStyles'
 import type { AuthenticatedFetch, EventPayload } from '../../../types/domain'
@@ -42,13 +42,18 @@ export function CreateEventModal({
           >
             <Text style={formStyles.eventModalCloseText}>×</Text>
           </Pressable>
-          <CreateEventForm
-            onCreate={onCreate}
-            fetcher={fetcher}
-            message={message}
-            onCreated={onClose}
-            inModal
-          />
+          <ScrollView
+            contentContainerStyle={{ paddingBottom: 8 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <CreateEventForm
+              onCreate={onCreate}
+              fetcher={fetcher}
+              message={message}
+              onCreated={onClose}
+              inModal
+            />
+          </ScrollView>
         </Pressable>
       </Pressable>
     </SystemModal>

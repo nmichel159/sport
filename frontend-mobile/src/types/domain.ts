@@ -21,6 +21,16 @@ export type ApiRegistration = {
 }
 
 export type ParticipationType = 'TEAM' | 'INDIVIDUAL'
+export type EventType = 'TOURNAMENT' | 'LEAGUE'
+
+export type EventCategory = {
+  id?: string
+  age_group: 'kids' | 'junior' | 'open' | 'veterani'
+  team_format: '1v1' | '2v2' | '3v3' | '3v3g' | '4v4' | '5v5'
+  gender_category: 'muzi' | 'zeny' | 'mix'
+  fee: number
+  capacity: number
+}
 
 export type TournamentFormat = {
   id: string
@@ -31,28 +41,44 @@ export type TournamentFormat = {
 export type ApiEvent = {
   id: string
   name: string
+  event_type: EventType
   sport: string
   participation_type: ParticipationType
   format_id: string | null
   format_code: string | null
   format_name: string | null
   event_date?: string | null
+  event_time?: string | null
+  region?: string | null
+  city_id?: string | null
+  city?: string | null
+  venue?: string | null
+  cover_image_url?: string | null
+  registration_open: boolean
+  xp_points?: number | null
   location?: string | null
   fee?: number | null
   description?: string | null
   // The API does not provide event images yet, but discovery cards are ready for one.
   image_url?: string | null
+  categories: EventCategory[]
   registrations: ApiRegistration[]
 }
 
 export type EventPayload = {
   name: string
+  event_type: EventType
   sport: string
   participation_type: ParticipationType
   format_id?: string | null
-  event_date?: string | null
-  location?: string | null
-  fee?: number | null
+  event_date: string
+  event_time?: string | null
+  region: string
+  city_id?: string | null
+  city?: string | null
+  venue?: string | null
+  cover_image_url?: string | null
+  categories: Omit<EventCategory, 'id'>[]
   description?: string | null
 }
 
@@ -116,6 +142,45 @@ export type EventBracket = {
   generated: boolean
   round_count: number
   matches: BracketMatch[]
+}
+
+export type MatchResultPlayer = {
+  id: string
+  name: string
+  registration_id: string
+  side: 'A' | 'B'
+}
+
+export type MatchResultScorer = {
+  user_id: string
+  name: string
+  goals: number
+}
+
+export type MatchResultDetail = {
+  match_id: string
+  kind: 'BRACKET' | 'GROUP'
+  sport: string
+  supports_scorers: boolean
+  supports_mvp: boolean
+  participant_a: BracketParticipant
+  participant_b: BracketParticipant
+  score_a: number | null
+  score_b: number | null
+  pitch: string | null
+  scheduled_start: string | null
+  players: MatchResultPlayer[]
+  scorers: MatchResultScorer[]
+  mvp_user_id: string | null
+}
+
+export type MatchResultPayload = {
+  score_a: number
+  score_b: number
+  pitch: string | null
+  scheduled_start: string | null
+  mvp_user_id: string | null
+  scorers: { user_id: string; goals: number }[]
 }
 
 export type GroupParticipant = {
