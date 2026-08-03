@@ -38,12 +38,6 @@ export const eventCardStyles = StyleSheet.create({
     backgroundColor: '#17181c',
   },
   cardPressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
-  image: { height: 122, justifyContent: 'flex-end', padding: 11 },
-  imageInner: { borderTopLeftRadius: 17, borderTopRightRadius: 17 },
-  imageShade: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#0b0c0e66',
-  },
   imagePlaceholder: {
     height: 122,
     alignItems: 'center',
@@ -52,6 +46,7 @@ export const eventCardStyles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#665814',
   },
+  sportImage: { width: 78, height: 78 },
   sportMark: {
     width: 46,
     height: 46,

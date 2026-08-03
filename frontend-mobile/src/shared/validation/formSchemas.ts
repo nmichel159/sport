@@ -35,7 +35,7 @@ export const eventCreationFormSchema = z
     region: requiredText,
     requiresCity: z.boolean(),
     city: z.object({ id: requiredText, name: requiredText }).nullable(),
-    categories: z.array(eventCategorySchema).min(1),
+    categories: z.array(eventCategorySchema),
   })
   .superRefine((value, context) => {
     if (value.requiresCity && !value.city) {

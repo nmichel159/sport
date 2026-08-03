@@ -1,6 +1,7 @@
 import re
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import delete, select
@@ -1067,7 +1068,7 @@ def create_event(
         xp_points=None,
         # Keep the legacy summary fields populated for existing discovery UI.
         location=(payload.venue or payload.city or "").strip() or None,
-        fee=min(category.fee for category in payload.categories),
+        fee=min((category.fee for category in payload.categories), default=Decimal("0")),
         description=(payload.description or "").strip() or None,
     )
     db.add(event)
@@ -1149,7 +1150,7 @@ def update_event(
     event.location = (
         payload.venue or payload.city or ""
     ).strip() or None
-    event.fee = min(category.fee for category in payload.categories)
+    event.fee = min((category.fee for category in payload.categories), default=Decimal("0"))
     event.description = (payload.description or "").strip() or None
     db.execute(
         delete(OrganizationEventCategory).where(

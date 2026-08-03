@@ -50,7 +50,7 @@ class EventCreate(StrictInput):
     city: str | None = Field(default=None, max_length=120)
     venue: str | None = Field(default=None, max_length=240)
     cover_image_url: str | None = Field(default=None, max_length=2048)
-    categories: list[EventCategoryCreate] = Field(min_length=1, max_length=30)
+    categories: list[EventCategoryCreate] = Field(max_length=30)
     description: str | None = Field(default=None, max_length=2000)
 
     @model_validator(mode="after")

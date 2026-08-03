@@ -1,9 +1,11 @@
-import { Pressable, Text, View } from 'react-native'
+import { Image, Pressable, Text, View } from 'react-native'
+import { useState } from 'react'
 import { AppTextInput } from '../../../components/AppTextInput'
 import { DatePickerModal } from '../../../components/DatePickerModal'
 import { ValidatedCatalogInput } from '../../../components/ValidatedCatalogInput'
 import { formStyles } from '../../../styles/formStyles'
 import { teamStyles } from '../../../styles/teamStyles'
+import { SystemModal } from '../../../system/SystemModal'
 import { useAccentStyles } from '../../../theme/useAccentStyles'
 import type { AuthenticatedFetch, EventPayload } from '../../../types/domain'
 import {
@@ -26,18 +28,55 @@ type Props = {
 
 type ChipOption = { value: string; label: string }
 
+const PRIMARY_SPORT_CODES = new Set(['FOOTBALL', 'FLOORBALL', 'BASKETBALL', 'VOLLEYBALL'])
+const SPORT_EMOJIS: Record<string, string> = {
+  FOOTBALL: '⚽', FLOORBALL: '🏑', BASKETBALL: '🏀', VOLLEYBALL: '🏐',
+  RUNNING: '🏃', BADMINTON: '🏸', TENNIS: '🎾', TABLE_TENNIS: '🏓',
+  SPORT_GAMES: '🏅', PICKLEBALL: '🥎',
+}
+
+function formatTimeInput(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 4)
+  return digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits
+}
+
+function SportPicker({ sports, value, onChange }: { sports: { code: string; name: string }[]; value: string; onChange: (value: string) => void }) {
+  const accent = useAccentStyles()
+  const [expanded, setExpanded] = useState(false)
+  const primarySports = sports.filter((sport) => PRIMARY_SPORT_CODES.has(sport.code))
+  const extraSports = sports.filter((sport) => !PRIMARY_SPORT_CODES.has(sport.code))
+  const visibleSports = expanded ? [...primarySports, ...extraSports] : primarySports
+
+  return <View style={formStyles.sportPicker}>
+    <View style={formStyles.sportGrid}>
+      {visibleSports.map((item) => {
+        const selected = item.name === value
+        return <Pressable key={item.code} accessibilityRole="button" accessibilityState={{ selected }} onPress={() => onChange(item.name)} style={[formStyles.sportOption, selected && formStyles.sportOptionSelected, selected && accent.selectedChip]}>
+          <Text style={formStyles.sportOptionEmoji}>{SPORT_EMOJIS[item.code] ?? '🏅'}</Text>
+          <Text numberOfLines={1} style={[formStyles.sportOptionText, selected && formStyles.sportOptionTextSelected, selected && accent.primaryText]}>{item.name === 'Basketbal 3x3' ? 'Basketbal' : item.name}</Text>
+        </Pressable>
+      })}
+    </View>
+    {extraSports.length ? <Pressable accessibilityRole="button" onPress={() => setExpanded((current) => !current)} style={formStyles.expandSportsButton}>
+      <Text style={[formStyles.expandSportsText, accent.accentText]}>{expanded ? 'Zobraziť menej športov ↑' : `Ďalšie športy (${extraSports.length}) ↓`}</Text>
+    </Pressable> : null}
+  </View>
+}
+
 function ChipPicker({
   options,
   value,
   onChange,
+  compact = false,
 }: {
   options: readonly ChipOption[]
   value: string
   onChange: (value: string) => void
+  compact?: boolean
 }) {
   const accent = useAccentStyles()
   return (
-    <View style={formStyles.genderRow}>
+    <View style={[formStyles.genderRow, compact && formStyles.compactChipRow]}>
       {options.map((option) => {
         const selected = option.value === value
         return (
@@ -45,6 +84,7 @@ function ChipPicker({
             key={option.value}
             style={[
               formStyles.genderChip,
+              compact && formStyles.compactChip,
               selected && formStyles.genderChipSelected,
               selected && accent.selectedChip,
             ]}
@@ -53,6 +93,7 @@ function ChipPicker({
             <Text
               style={[
                 formStyles.genderText,
+                compact && formStyles.compactChipText,
                 selected && formStyles.genderTextSelected,
                 selected && accent.primaryText,
               ]}
@@ -77,76 +118,126 @@ export function CreateEventForm({
   const accent = useAccentStyles()
   const isLeague = form.eventType === 'LEAGUE'
   const cityRequired = !NATIONWIDE_REGIONS.has(form.region)
+  const [regionsExpanded, setRegionsExpanded] = useState(false)
+  const [openCategories, setOpenCategories] = useState<Set<number>>(() => new Set([0]))
+  const [showTimePicker, setShowTimePicker] = useState(false)
+  const [timeDraft, setTimeDraft] = useState('')
+  const [showCoverPicker, setShowCoverPicker] = useState(false)
+  const [coverDraft, setCoverDraft] = useState('')
+
+  const selectRegion = (region: string) => {
+    form.setRegion(region)
+    setRegionsExpanded(false)
+  }
+
+  const addCategory = () => {
+    const nextIndex = form.categories.length
+    form.addCategory()
+    setOpenCategories(new Set([nextIndex]))
+  }
+
+  const removeCategory = (index: number) => {
+    form.removeCategory(index)
+    setOpenCategories((current) => {
+      const next = new Set<number>()
+      current.forEach((openIndex) => {
+        if (openIndex < index) next.add(openIndex)
+        if (openIndex > index) next.add(openIndex - 1)
+      })
+      return next
+    })
+  }
+
+  const collapseCategories = () => setOpenCategories(new Set())
+
+  const openTimePicker = () => {
+    collapseCategories()
+    setTimeDraft(form.eventTime)
+    setShowTimePicker(true)
+  }
+
+  const openCoverPicker = () => {
+    collapseCategories()
+    setCoverDraft(form.coverImageUrl)
+    setShowCoverPicker(true)
+  }
 
   return (
     <>
-      <View style={inModal ? formStyles.modalEventForm : teamStyles.form}>
+      <View
+        style={inModal ? formStyles.modalEventForm : teamStyles.form}
+        onTouchStart={collapseCategories}
+      >
         <Text style={[teamStyles.title, inModal && formStyles.modalEventTitle]}>
           Vytvoriť event
         </Text>
 
-        <Text style={formStyles.pickerLabel}>TYP</Text>
-        <ChipPicker
-          options={EVENT_TYPES}
-          value={form.eventType}
-          onChange={(value) =>
-            form.setEventType(value as typeof form.eventType)
-          }
-        />
+        <View style={formStyles.eventFormSection}>
+          <Text style={formStyles.eventSectionLabel}>ZÁKLADNÉ ÚDAJE</Text>
+        <View style={formStyles.eventFormColumns}>
+          <View style={formStyles.eventFormColumn}>
+            <Text style={formStyles.pickerLabel}>TYP</Text>
+            <ChipPicker
+              options={EVENT_TYPES}
+              value={form.eventType}
+              onChange={(value) => form.setEventType(value as typeof form.eventType)}
+              compact
+            />
+          </View>
+          <View style={formStyles.eventFormColumn}>
+            <Text style={formStyles.pickerLabel}>ÚČASŤ</Text>
+            <ChipPicker
+              options={[
+                { value: 'TEAM', label: 'Tímové' },
+                { value: 'INDIVIDUAL', label: 'Jednotlivci' },
+              ]}
+              value={form.mode}
+              onChange={(value) => form.setMode(value as typeof form.mode)}
+              compact
+            />
+          </View>
+        </View>
         <Text style={teamStyles.muted}>
-          {isLeague
-            ? 'Sezónna liga v podzáložke Ligy.'
-            : 'Turnaj, ktorý sa zobrazí v Eventoch.'}
+          {isLeague ? 'Sezónna liga v podzáložke Ligy.' : 'Turnaj, ktorý sa zobrazí v Eventoch.'}
         </Text>
 
-        <Text style={formStyles.pickerLabel}>COVER FOTKA · VOLITEĽNÉ</Text>
-        <AppTextInput
-          value={form.coverImageUrl}
-          onChangeText={form.setCoverImageUrl}
-          placeholder="URL obrázka (inak použijeme emoji športu)"
-          autoCapitalize="none"
-          keyboardType="url"
-          style={formStyles.input}
-        />
-
-        <Text style={formStyles.pickerLabel}>
-          {isLeague ? 'NÁZOV LIGY' : 'NÁZOV TURNAJA'}
-        </Text>
-        <AppTextInput
-          value={form.name}
-          onChangeText={form.setName}
-          placeholder={isLeague ? 'Názov ligy' : 'Názov turnaja'}
-          style={formStyles.input}
-          maxLength={180}
-        />
+        <View style={formStyles.nameCoverRow}>
+          <View style={formStyles.nameField}>
+            <Text style={formStyles.pickerLabel}>
+              {isLeague ? 'NÁZOV LIGY' : 'NÁZOV TURNAJA'}
+            </Text>
+            <AppTextInput
+              value={form.name}
+              onChangeText={form.setName}
+              onFocus={collapseCategories}
+              placeholder={isLeague ? 'Názov ligy' : 'Názov turnaja'}
+              style={formStyles.input}
+              maxLength={180}
+            />
+          </View>
+          <Pressable accessibilityRole="button" onPress={openCoverPicker} style={formStyles.coverPickerButton}>
+            {form.coverImageUrl ? (
+              <Image source={{ uri: form.coverImageUrl }} style={formStyles.coverPreview} />
+            ) : (
+              <Text style={formStyles.coverPickerEmoji}>🖼️</Text>
+            )}
+            <Text numberOfLines={1} style={formStyles.coverPickerTitle}>
+              {form.coverImageUrl ? 'Upraviť' : 'Titulovka'}
+            </Text>
+          </Pressable>
+        </View>
 
         <Text style={formStyles.pickerLabel}>ŠPORT</Text>
-        <ChipPicker
-          options={form.sports.map((item) => ({
-            value: item.name,
-            label: item.name === 'Basketbal 3x3' ? 'Basketbal' : item.name,
-          }))}
-          value={form.sport}
-          onChange={form.setSport}
-        />
+        <SportPicker sports={form.sports} value={form.sport} onChange={(sport) => { collapseCategories(); form.setSport(sport) }} />
+        </View>
 
-        <Text style={formStyles.pickerLabel}>ÚČASŤ</Text>
-        <ChipPicker
-          options={[
-            { value: 'TEAM', label: 'Tímové' },
-            { value: 'INDIVIDUAL', label: 'Jednotlivci' },
-          ]}
-          value={form.mode}
-          onChange={(value) => form.setMode(value as typeof form.mode)}
-        />
-
+        <View style={formStyles.eventFormSection}>
+          <Text style={formStyles.eventSectionLabel}>TERMÍN A MIESTO</Text>
         <Text style={formStyles.pickerLabel}>
           {isLeague ? 'DÁTUM ZAČIATKU SEZÓNY' : 'DÁTUM A ČAS'}
         </Text>
-        <Pressable
-          style={formStyles.dateButton}
-          onPress={() => form.setShowDatePicker(true)}
-        >
+        <View style={formStyles.dateTimeControl}>
+        <Pressable style={formStyles.dateTimeDate} onPress={() => { collapseCategories(); form.setShowDatePicker(true) }}>
           <Text
             style={
               form.eventDate
@@ -160,25 +251,24 @@ export function CreateEventForm({
           </Text>
         </Pressable>
         {!isLeague ? (
-          <AppTextInput
-            value={form.eventTime}
-            onChangeText={form.setEventTime}
-            placeholder="Čas vo formáte HH:MM"
-            keyboardType="numbers-and-punctuation"
-            maxLength={5}
-            style={formStyles.input}
-          />
+          <Pressable accessibilityRole="button" onPress={openTimePicker} style={formStyles.dateTimeInput}>
+            <Text style={form.eventTime ? formStyles.dateValue : formStyles.datePlaceholder}>
+              {form.eventTime || 'Čas'}
+            </Text>
+          </Pressable>
         ) : null}
+        </View>
 
         <Text style={formStyles.pickerLabel}>KRAJ</Text>
-        <ChipPicker
-          options={SLOVAK_REGIONS.map((region) => ({
-            value: region,
-            label: region,
-          }))}
-          value={form.region}
-          onChange={form.setRegion}
-        />
+        <Pressable accessibilityRole="button" onPress={() => { collapseCategories(); setRegionsExpanded((current) => !current) }} style={formStyles.regionSelect}>
+          <Text style={form.region ? formStyles.dateValue : formStyles.datePlaceholder}>{form.region || 'Vyber kraj'}</Text>
+          <Text style={formStyles.regionChevron}>{regionsExpanded ? '↑' : '↓'}</Text>
+        </Pressable>
+        {regionsExpanded ? <View style={formStyles.regionOptions}>
+          {SLOVAK_REGIONS.map((region) => <Pressable key={region} onPress={() => selectRegion(region)} style={[formStyles.regionOption, form.region === region && formStyles.regionOptionSelected, form.region === region && accent.selectedChip]}>
+            <Text style={[formStyles.regionOptionText, form.region === region && accent.primaryText]}>{region}</Text>
+          </Pressable>)}
+        </View> : null}
 
         {cityRequired ? (
           <>
@@ -209,36 +299,58 @@ export function CreateEventForm({
         <AppTextInput
           value={form.venue}
           onChangeText={form.setVenue}
+          onFocus={collapseCategories}
           placeholder="Napr. Sídlisko Ťahanovce, hala A"
           maxLength={240}
           style={formStyles.input}
         />
+        </View>
 
+        <View style={formStyles.eventFormSection}>
         <View style={formStyles.eventSectionHeading}>
           <View style={formStyles.eventSectionCopy}>
             <Text style={teamStyles.title}>Kategórie</Text>
             <Text style={teamStyles.muted}>
-              Vek • pohlavie • formát
+              Voliteľné — event môžeš vytvoriť aj bez kategórií.
             </Text>
           </View>
-          <Pressable onPress={form.addCategory}>
-            <Text style={[teamStyles.back, accent.accentText]}>
-              + Pridať
-            </Text>
+          <Pressable accessibilityRole="button" onPress={addCategory} style={[formStyles.addCategoryButton, accent.selectedChip]}>
+            <Text style={[formStyles.addCategoryText, accent.primaryText]}>+ Pridať kategóriu</Text>
           </Pressable>
         </View>
 
-        {form.categories.map((category, index) => (
-          <View key={index} style={formStyles.eventCategoryCard}>
+        {form.categories.map((category, index) => {
+          const isOpen = openCategories.has(index)
+          const age = AGE_GROUPS.find((option) => option.value === category.age_group)?.label
+          const format = TEAM_FORMATS.find((option) => option.value === category.team_format)?.label
+          const gender = GENDER_CATEGORIES.find((option) => option.value === category.gender_category)?.label
+          const title = age ?? `Kategória ${index + 1}`
+          const summary = [format, gender, category.capacity && `${category.capacity} miest`, category.fee && `${category.fee} €`].filter(Boolean).join(' · ') || 'Nastav formát a pohlavie'
+          return (
+          <View
+            key={index}
+            style={formStyles.eventCategoryCard}
+            onTouchStart={(event) => event.stopPropagation()}
+          >
             <View style={formStyles.eventSectionHeading}>
-              <Text style={teamStyles.title}>Kategória {index + 1}</Text>
-              {form.categories.length > 1 ? (
-                <Pressable onPress={() => form.removeCategory(index)}>
-                  <Text style={formStyles.eventRemoveText}>Odstrániť</Text>
-                </Pressable>
-              ) : null}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: isOpen }}
+                onPress={() => setOpenCategories((current) => current.has(index) ? new Set() : new Set([index]))}
+                style={formStyles.categoryCardHeader}
+              >
+                <View style={formStyles.categoryCardCopy}>
+                  <Text style={teamStyles.title}>{isOpen ? `Kategória ${index + 1}` : title}</Text>
+                  <Text numberOfLines={1} style={formStyles.categorySummary}>{summary}</Text>
+                </View>
+                <Text style={[formStyles.categoryAction, accent.accentText]}>{isOpen ? 'Hotovo' : 'Upraviť detail'}</Text>
+              </Pressable>
+              <Pressable onPress={() => removeCategory(index)}>
+                <Text style={formStyles.eventRemoveText}>Odstrániť</Text>
+              </Pressable>
             </View>
 
+            {isOpen ? <>
             <Text style={formStyles.pickerLabel}>VEKOVÁ KATEGÓRIA</Text>
             <ChipPicker
               options={AGE_GROUPS}
@@ -299,9 +411,14 @@ export function CreateEventForm({
                 />
               </View>
             </View>
+            </> : null}
           </View>
-        ))}
+          )
+        })}
+        </View>
 
+        <View style={formStyles.eventFormSection}>
+          <Text style={formStyles.eventSectionLabel}>DOPLNKOVÉ INFORMÁCIE</Text>
         <Text style={formStyles.pickerLabel}>
           {isLeague
             ? 'POPIS / PRAVIDLÁ LIGY · VOLITEĽNÉ'
@@ -310,6 +427,7 @@ export function CreateEventForm({
         <AppTextInput
           value={form.description}
           onChangeText={form.setDescription}
+          onFocus={collapseCategories}
           placeholder="Informácie a pravidlá pre účastníkov"
           style={[
             formStyles.input,
@@ -318,10 +436,6 @@ export function CreateEventForm({
           multiline
           maxLength={2000}
         />
-
-        <Text style={teamStyles.muted}>
-          XP priradí platforma dodatočne. Registrácia sa po vytvorení otvorí.
-        </Text>
 
         <Pressable
           style={[teamStyles.primary, accent.primaryButton]}
@@ -344,6 +458,7 @@ export function CreateEventForm({
           <Text style={formStyles.error}>{form.error}</Text>
         ) : null}
         {message ? <Text style={formStyles.error}>{message}</Text> : null}
+        </View>
       </View>
 
       <DatePickerModal
@@ -355,6 +470,52 @@ export function CreateEventForm({
           form.setShowDatePicker(false)
         }}
       />
+      <SystemModal visible={showTimePicker} transparent animationType="fade" onRequestClose={() => setShowTimePicker(false)}>
+        <View style={formStyles.modalOverlay}>
+          <View style={formStyles.modalSheet}>
+            <Text style={formStyles.modalTitle}>Zadaj čas</Text>
+            <Text style={formStyles.modalHint}>Použi formát HH:MM, napríklad 18:30.</Text>
+            <AppTextInput
+              autoFocus
+              value={timeDraft}
+              onChangeText={(value) => setTimeDraft(formatTimeInput(value))}
+              placeholder="18:30"
+              keyboardType="number-pad"
+              maxLength={5}
+              style={formStyles.input}
+            />
+            <View style={formStyles.modalActions}>
+              <Pressable onPress={() => setShowTimePicker(false)}><Text style={formStyles.cancelText}>Zrušiť</Text></Pressable>
+              <Pressable style={[formStyles.saveDateButton, accent.primaryButton]} onPress={() => { form.setEventTime(timeDraft); setShowTimePicker(false) }}>
+                <Text style={[formStyles.saveDateText, accent.primaryText]}>Potvrdiť</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </SystemModal>
+      <SystemModal visible={showCoverPicker} transparent animationType="fade" onRequestClose={() => setShowCoverPicker(false)}>
+        <View style={formStyles.modalOverlay}>
+          <View style={formStyles.modalSheet}>
+            <Text style={formStyles.modalTitle}>Cover fotka</Text>
+            <Text style={formStyles.modalHint}>Vlož odkaz na obrázok. Fotka je voliteľná.</Text>
+            <AppTextInput
+              autoFocus
+              value={coverDraft}
+              onChangeText={setCoverDraft}
+              placeholder="https://…"
+              autoCapitalize="none"
+              keyboardType="url"
+              style={formStyles.input}
+            />
+            <View style={formStyles.modalActions}>
+              <Pressable onPress={() => { form.setCoverImageUrl(''); setShowCoverPicker(false) }}><Text style={formStyles.cancelText}>Odstrániť</Text></Pressable>
+              <Pressable style={[formStyles.saveDateButton, accent.primaryButton]} onPress={() => { form.setCoverImageUrl(coverDraft.trim()); setShowCoverPicker(false) }}>
+                <Text style={[formStyles.saveDateText, accent.primaryText]}>Potvrdiť</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </SystemModal>
     </>
   )
 }

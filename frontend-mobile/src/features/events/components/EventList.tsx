@@ -1,4 +1,5 @@
-import { ImageBackground, Pressable, Text, View } from 'react-native'
+import { Image, Pressable, Text, View } from 'react-native'
+import { getSportImage } from '../../../assets/sportImages'
 import { PlaceholderTab } from '../../../components/PlaceholderTab'
 import { eventCardStyles } from '../../../styles/eventTabStyles'
 import { useTheme } from '../../../theme/ThemeContext'
@@ -43,26 +44,32 @@ export function EventList({
 
   return (
     <View style={eventCardStyles.grid}>
-      {events.map((event) => (
-        <Pressable
+      {events.map((event) => {
+        const sportImage = getSportImage(event.sport)
+
+        return (
+          <Pressable
           key={event.id}
           onPress={() => onOpen(event)}
           style={({ pressed }) => [
             eventCardStyles.card,
             pressed && eventCardStyles.cardPressed,
           ]}
-        >
-          {event.image_url ? (
-            <ImageBackground
-              source={{ uri: event.image_url }}
-              style={eventCardStyles.image}
-              imageStyle={eventCardStyles.imageInner}
+          >
+          {sportImage ? (
+            <View
+              style={[
+                eventCardStyles.imagePlaceholder,
+                { backgroundColor: theme.soft, borderBottomColor: theme.softBorder },
+              ]}
             >
-              <View style={eventCardStyles.imageShade} />
-              <Text style={eventCardStyles.imageSport}>
-                {event.sport.toUpperCase()}
-              </Text>
-            </ImageBackground>
+              <Image
+                source={sportImage}
+                accessibilityLabel={`${event.sport} lopta`}
+                style={eventCardStyles.sportImage}
+                resizeMode="contain"
+              />
+            </View>
           ) : (
             <View
               style={[
@@ -101,8 +108,9 @@ export function EventList({
               </Text>
             </View>
           </View>
-        </Pressable>
-      ))}
+          </Pressable>
+        )
+      })}
     </View>
   )
 }

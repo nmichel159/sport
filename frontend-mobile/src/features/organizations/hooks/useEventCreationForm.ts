@@ -38,9 +38,7 @@ export function useEventCreationForm(
   const [cities, setCities] = useState<DistrictCity[]>([])
   const [city, setCity] = useState<DistrictCity | null>(null)
   const [venue, setVenue] = useState('')
-  const [categories, setCategories] = useState<EventCategoryDraft[]>([
-    emptyCategory(),
-  ])
+  const [categories, setCategories] = useState<EventCategoryDraft[]>([])
   const [description, setDescription] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -101,9 +99,7 @@ export function useEventCreationForm(
 
   const removeCategory = (index: number) => {
     setCategories((current) =>
-      current.length === 1
-        ? current
-        : current.filter((_, categoryIndex) => categoryIndex !== index),
+      current.filter((_, categoryIndex) => categoryIndex !== index),
     )
   }
 
@@ -159,7 +155,7 @@ export function useEventCreationForm(
       setCityQuery('')
       setCity(null)
       setVenue('')
-      setCategories([emptyCategory()])
+      setCategories([])
       setDescription('')
       return true
     } catch {
