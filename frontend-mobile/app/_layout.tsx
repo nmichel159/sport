@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router'
 import { StyleSheet } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { KeyboardProvider } from 'react-native-keyboard-controller'
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -12,26 +13,28 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={styles.flex}>
-        <AppProviders>
-          <SafeAreaView
-            edges={['top', 'right', 'bottom', 'left']}
-            style={styles.safeArea}
-          >
-            <DismissKeyboardView>
-              <Stack
-                screenOptions={{
-                  contentStyle: styles.screen,
-                }}
-              >
-                <Stack.Screen name="index" options={{ headerShown: false }} />
-                <Stack.Screen
-                  name="oauth2redirect"
-                  options={{ headerShown: false }}
-                />
-              </Stack>
-            </DismissKeyboardView>
-          </SafeAreaView>
-        </AppProviders>
+        <KeyboardProvider>
+          <AppProviders>
+            <SafeAreaView
+              edges={['top', 'right', 'bottom', 'left']}
+              style={styles.safeArea}
+            >
+              <DismissKeyboardView>
+                <Stack
+                  screenOptions={{
+                    contentStyle: styles.screen,
+                  }}
+                >
+                  <Stack.Screen name="index" options={{ headerShown: false }} />
+                  <Stack.Screen
+                    name="oauth2redirect"
+                    options={{ headerShown: false }}
+                  />
+                </Stack>
+              </DismissKeyboardView>
+            </SafeAreaView>
+          </AppProviders>
+        </KeyboardProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>
   )

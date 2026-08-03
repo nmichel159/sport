@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Platform } from 'react-native'
 
 // Do not load the native module in a browser bundle.
@@ -10,7 +11,7 @@ export async function getStoredValue(key: string): Promise<string | null> {
   if (Platform.OS === 'web') {
     return globalThis.localStorage?.getItem(key) ?? null
   }
-  return secureStore!.getItemAsync(key)
+  return AsyncStorage.getItem(key)
 }
 
 export async function setStoredValue(key: string, value: string): Promise<void> {
@@ -18,10 +19,31 @@ export async function setStoredValue(key: string, value: string): Promise<void> 
     globalThis.localStorage?.setItem(key, value)
     return
   }
-  await secureStore!.setItemAsync(key, value)
+  await AsyncStorage.setItem(key, value)
 }
 
 export async function removeStoredValue(key: string): Promise<void> {
+  if (Platform.OS === 'web') {
+    globalThis.localStorage?.removeItem(key)
+    return
+  }
+  await AsyncStorage.removeItem(key)
+}
+
+export async function getSecureStoredValue(key: string) {
+  if (Platform.OS === 'web') return globalThis.localStorage?.getItem(key) ?? null
+  return secureStore!.getItemAsync(key)
+}
+
+export async function setSecureStoredValue(key: string, value: string) {
+  if (Platform.OS === 'web') {
+    globalThis.localStorage?.setItem(key, value)
+    return
+  }
+  await secureStore!.setItemAsync(key, value)
+}
+
+export async function removeSecureStoredValue(key: string) {
   if (Platform.OS === 'web') {
     globalThis.localStorage?.removeItem(key)
     return

@@ -1,6 +1,5 @@
 import {
   forwardRef,
-  useContext,
   useImperativeHandle,
   useRef,
 } from 'react'
@@ -8,7 +7,6 @@ import {
   TextInput,
   type TextInputProps,
 } from 'react-native'
-import { KeyboardAwareScrollContext } from './KeyboardAwareScrollView'
 import { useTheme } from '../theme/ThemeContext'
 
 /**
@@ -27,7 +25,6 @@ export const AppTextInput = forwardRef<TextInput, TextInputProps>(
     },
     ref,
   ) {
-    const registerFocusedInput = useContext(KeyboardAwareScrollContext)
     const { theme } = useTheme()
     const inputRef = useRef<TextInput>(null)
 
@@ -41,10 +38,7 @@ export const AppTextInput = forwardRef<TextInput, TextInputProps>(
         placeholderTextColor={placeholderTextColor}
         selectionColor={selectionColor ?? theme.primary}
         underlineColorAndroid={underlineColorAndroid}
-        onFocus={(event) => {
-          registerFocusedInput(inputRef.current)
-          onFocus?.(event)
-        }}
+        onFocus={onFocus}
       />
     )
   },

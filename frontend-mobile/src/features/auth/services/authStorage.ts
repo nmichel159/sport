@@ -1,7 +1,7 @@
 import {
-  getStoredValue,
-  removeStoredValue,
-  setStoredValue,
+  getSecureStoredValue,
+  removeSecureStoredValue,
+  setSecureStoredValue,
 } from '../../../services/storage'
 import type { User } from '../types'
 
@@ -10,33 +10,32 @@ const userKey = 'sport-current-user'
 
 export async function readStoredSession() {
   const [serializedUser, refreshToken] = await Promise.all([
-    getStoredValue(userKey),
-    getStoredValue(refreshKey),
+    getSecureStoredValue(userKey),
+    getSecureStoredValue(refreshKey),
   ])
 
   return { serializedUser, refreshToken }
 }
 
 export function readRefreshToken() {
-  return getStoredValue(refreshKey)
+  return getSecureStoredValue(refreshKey)
 }
 
 export function storeRefreshToken(token: string) {
-  return setStoredValue(refreshKey, token)
+  return setSecureStoredValue(refreshKey, token)
 }
 
 export function storeUser(user: User) {
-  return setStoredValue(userKey, JSON.stringify(user))
+  return setSecureStoredValue(userKey, JSON.stringify(user))
 }
 
 export function removeStoredUser() {
-  return removeStoredValue(userKey)
+  return removeSecureStoredValue(userKey)
 }
 
 export async function clearStoredSession() {
   await Promise.all([
-    removeStoredValue(refreshKey),
-    removeStoredValue(userKey),
+    removeSecureStoredValue(refreshKey),
+    removeSecureStoredValue(userKey),
   ])
 }
-

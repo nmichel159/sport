@@ -12,14 +12,13 @@ import type {
   ParticipationType,
 } from '../../../types/domain'
 import { toIsoDate } from '../../../utils/date'
+import { eventCreationFormSchema } from '../../../shared/validation/formSchemas'
 import {
   NATIONWIDE_REGIONS,
   districtBelongsToRegion,
   emptyCategory,
   type EventCategoryDraft,
 } from '../eventFormOptions'
-
-const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/
 
 export function useEventCreationForm(
   _fetcher: AuthenticatedFetch,
@@ -110,28 +109,20 @@ export function useEventCreationForm(
 
   const submit = async () => {
     const requiresCity = !NATIONWIDE_REGIONS.has(region)
-    const timeIsValid =
-      eventType === 'LEAGUE' || TIME_PATTERN.test(eventTime)
-    const categoriesAreValid = categories.every(
-      (category) =>
-        category.age_group &&
-        category.team_format &&
-        category.gender_category &&
-        category.fee !== '' &&
-        Number(category.fee) >= 0 &&
-        Number.isInteger(Number(category.capacity)) &&
-        Number(category.capacity) > 0,
-    )
+    const result = eventCreationFormSchema.safeParse({
+      name,
+      eventType,
+      sport,
+      mode,
+      eventDate,
+      eventTime,
+      region,
+      requiresCity,
+      city,
+      categories,
+    })
 
-    if (
-      !name.trim() ||
-      !sport ||
-      !eventDate ||
-      !region ||
-      (requiresCity && !city) ||
-      !timeIsValid ||
-      !categoriesAreValid
-    ) {
+    if (!result.success) {
       setError(
         'Vyplň typ, názov, šport, termín, lokalitu a všetky údaje kategórií.',
       )
@@ -143,24 +134,18 @@ export function useEventCreationForm(
 
     try {
       await onCreate({
-        name: name.trim(),
-        event_type: eventType,
-        sport,
-        participation_type: mode,
-        event_date: toIsoDate(eventDate),
-        event_time: eventType === 'TOURNAMENT' ? eventTime : null,
-        region,
-        city_id: city?.id ?? null,
-        city: city?.name ?? null,
+        name: result.data.name,
+        event_type: result.data.eventType,
+        sport: result.data.sport,
+        participation_type: result.data.mode,
+        event_date: toIsoDate(result.data.eventDate),
+        event_time: result.data.eventType === 'TOURNAMENT' ? result.data.eventTime : null,
+        region: result.data.region,
+        city_id: result.data.city?.id ?? null,
+        city: result.data.city?.name ?? null,
         venue: venue.trim() || null,
         cover_image_url: coverImageUrl.trim() || null,
-        categories: categories.map((category) => ({
-          age_group: category.age_group as EventPayload['categories'][number]['age_group'],
-          team_format: category.team_format as EventPayload['categories'][number]['team_format'],
-          gender_category: category.gender_category as EventPayload['categories'][number]['gender_category'],
-          fee: Number(category.fee),
-          capacity: Number(category.capacity),
-        })),
+        categories: result.data.categories,
         description: description.trim() || null,
       })
       setEventType('TOURNAMENT')

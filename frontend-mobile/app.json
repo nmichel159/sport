@@ -9,6 +9,8 @@
     "backgroundColor": "#0b0c0e",
     "plugins": [
       "expo-router",
+      "@react-native-community/datetimepicker",
+      "expo-localization",
       [
         "expo-navigation-bar",
         {
@@ -44,7 +46,6 @@
       "softwareKeyboardLayoutMode": "resize",
       "backgroundColor": "#0b0c0e",
       "edgeToEdgeEnabled": true,
-      "usesCleartextTraffic": false
     },
     "androidStatusBar": {
       "hidden": false,

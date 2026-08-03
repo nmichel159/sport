@@ -36,6 +36,32 @@ function TabIconGlyph({ icon, color }: { icon: TabIcon; color: string }) {
   return <Text style={[mainStyles.tabIconText, { color }]}>{glyph}</Text>
 }
 
+const styles = StyleSheet.create({
+  calendar: {
+    width: 18,
+    height: 17,
+    borderWidth: 1.8,
+    borderRadius: 4,
+    position: 'relative',
+  },
+  calendarDivider: {
+    position: 'absolute',
+    top: 4,
+    left: 0,
+    right: 0,
+    borderBottomWidth: 1.6,
+  },
+  calendarRing: {
+    position: 'absolute',
+    top: -3,
+    width: 2.5,
+    height: 5,
+    borderRadius: 2,
+  },
+  calendarRingLeft: { left: 4 },
+  calendarRingRight: { right: 4 },
+})
+
 export function BottomNavigation({ active, onChange }: Props) {
   const { theme } = useTheme()
 
@@ -48,6 +74,8 @@ export function BottomNavigation({ active, onChange }: Props) {
         return (
           <Pressable
             key={item.key}
+            accessibilityRole="tab"
+            accessibilityState={{ selected }}
             style={mainStyles.tabItem}
             onPress={() => onChange(item.key)}
           >
@@ -75,29 +103,3 @@ export function BottomNavigation({ active, onChange }: Props) {
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  calendar: {
-    width: 18,
-    height: 17,
-    borderWidth: 1.8,
-    borderRadius: 4,
-    position: 'relative',
-  },
-  calendarDivider: {
-    position: 'absolute',
-    top: 4,
-    left: 0,
-    right: 0,
-    borderBottomWidth: 1.6,
-  },
-  calendarRing: {
-    position: 'absolute',
-    top: -3,
-    width: 2.5,
-    height: 5,
-    borderRadius: 2,
-  },
-  calendarRingLeft: { left: 4 },
-  calendarRingRight: { right: 4 },
-})

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { Keyboard, StyleSheet, TextInput, View } from 'react-native'
+import { StyleSheet, TextInput, View } from 'react-native'
+import { KeyboardController } from 'react-native-keyboard-controller'
 
 /**
  * Dismisses the software keyboard when a touch starts outside the currently
@@ -17,7 +18,7 @@ export function DismissKeyboardView({
       onStartShouldSetResponderCapture={(event) => {
         const focusedInput = TextInput.State.currentlyFocusedInput()
         if (focusedInput && event.target !== focusedInput) {
-          Keyboard.dismiss()
+          void KeyboardController.dismiss()
         }
         return false
       }}

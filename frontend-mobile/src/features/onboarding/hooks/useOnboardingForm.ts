@@ -7,6 +7,7 @@ import {
 } from '../../../services/catalogs'
 import type { Gender, OnboardingData } from '../../../types/onboarding'
 import { toIsoDate } from '../../../utils/date'
+import { onboardingFormSchema } from '../../../shared/validation/formSchemas'
 
 type Options = {
   defaultName: string
@@ -63,15 +64,16 @@ export function useOnboardingForm({
   }, [cityQuery, city])
 
   const submit = async () => {
-    if (
-      !nickname.trim() ||
-      !firstName.trim() ||
-      !lastName.trim() ||
-      !birthDate ||
-      !gender ||
-      !school ||
-      !city
-    ) {
+    const result = onboardingFormSchema.safeParse({
+      nickname,
+      firstName,
+      lastName,
+      birthDate,
+      gender,
+      school,
+      city,
+    })
+    if (!result.success) {
       setError('Vyplň všetky údaje a zvoľ školu a mesto zo zoznamu.')
       return
     }
@@ -81,13 +83,13 @@ export function useOnboardingForm({
 
     try {
       await completeOnboarding({
-        nickname,
-        first_name: firstName,
-        last_name: lastName,
-        birth_date: toIsoDate(birthDate),
-        gender,
-        school_code: school.code,
-        district_city: city.name,
+        nickname: result.data.nickname,
+        first_name: result.data.firstName,
+        last_name: result.data.lastName,
+        birth_date: toIsoDate(result.data.birthDate),
+        gender: result.data.gender,
+        school_code: result.data.school.code,
+        district_city: result.data.city.name,
       })
     } catch {
       setError('Údaje sa nepodarilo uložiť.')
@@ -124,4 +126,3 @@ export function useOnboardingForm({
     submit,
   }
 }
-

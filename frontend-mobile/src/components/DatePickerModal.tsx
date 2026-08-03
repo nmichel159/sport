@@ -1,107 +1,145 @@
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from '@react-native-community/datetimepicker'
 import { useEffect, useState } from 'react'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Platform, Pressable, Text, View } from 'react-native'
 import { SystemModal } from '../system/SystemModal'
 import { formStyles } from '../styles/formStyles'
 import { useAccentStyles } from '../theme/useAccentStyles'
 
-const months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'Máj',
-  'Jún',
-  'Júl',
-  'Aug',
-  'Sep',
-  'Okt',
-  'Nov',
-  'Dec',
-]
-
 type Props = {
   visible: boolean
   initialDate: Date | null
+  defaultDate?: Date
+  minimumDate?: Date
+  maximumDate?: Date
   onClose: () => void
   onSelect: (date: Date) => void
 }
 
-export function DatePickerModal({
+const fallbackDate = () => new Date()
+
+/**
+ * Uses the platform date dialog on Android and the native spinner on iOS.
+ * The web target keeps a compact select fallback because the community
+ * picker intentionally has no browser implementation.
+ */
+export function DatePickerModal(props: Props) {
+  if (Platform.OS === 'web') return <WebDatePickerModal {...props} />
+  return <NativeDatePickerModal {...props} />
+}
+
+function NativeDatePickerModal({
   visible,
   initialDate,
+  defaultDate,
+  minimumDate,
+  maximumDate,
   onClose,
   onSelect,
 }: Props) {
   const accent = useAccentStyles()
-  const base = initialDate ?? new Date(2000, 0, 1)
-  const [year, setYear] = useState(base.getFullYear())
-  const [month, setMonth] = useState(base.getMonth())
-  const [day, setDay] = useState(base.getDate())
+  const [draft, setDraft] = useState(initialDate ?? defaultDate ?? fallbackDate())
 
   useEffect(() => {
-    if (!visible) return
+    if (visible) setDraft(initialDate ?? defaultDate ?? fallbackDate())
+  }, [visible, initialDate, defaultDate])
 
-    const date = initialDate ?? new Date(2000, 0, 1)
-    setYear(date.getFullYear())
-    setMonth(date.getMonth())
-    setDay(date.getDate())
+  if (!visible) return null
 
-  }, [visible, initialDate])
+  const handleChange = (event: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS === 'android') {
+      if (event.type === 'set' && date) onSelect(date)
+      else onClose()
+      return
+    }
+    if (date) setDraft(date)
+  }
 
-  const days = Array.from(
-    { length: new Date(year, month + 1, 0).getDate() },
-    (_, index) => index + 1,
-  )
+  if (Platform.OS === 'android') {
+    return (
+      <DateTimePicker
+        value={draft}
+        mode="date"
+        display="default"
+        minimumDate={minimumDate}
+        maximumDate={maximumDate}
+        onChange={handleChange}
+      />
+    )
+  }
 
   return (
     <SystemModal
-      visible={visible}
+      visible
       transparent
       animationType="fade"
       onRequestClose={onClose}
     >
       <View style={formStyles.modalOverlay}>
         <View style={formStyles.modalSheet}>
-          <Text style={formStyles.modalTitle}>Vyber dátum narodenia</Text>
-          <Text style={formStyles.modalHint}>
-            Rok, mesiac a deň vyber kliknutím.
-          </Text>
+          <Text style={formStyles.modalTitle}>Vyber dátum</Text>
+          <DateTimePicker
+            value={draft}
+            mode="date"
+            display="spinner"
+            minimumDate={minimumDate}
+            maximumDate={maximumDate}
+            onChange={handleChange}
+          />
+          <View style={formStyles.modalActions}>
+            <Pressable onPress={onClose}>
+              <Text style={formStyles.cancelText}>Zrušiť</Text>
+            </Pressable>
+            <Pressable
+              style={[formStyles.saveDateButton, accent.primaryButton]}
+              onPress={() => onSelect(draft)}
+            >
+              <Text style={[formStyles.saveDateText, accent.primaryText]}>OK</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </SystemModal>
+  )
+}
 
-          <Text style={formStyles.pickerLabel}>Rok</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={formStyles.optionRow}
-          >
-            {Array.from(
-              { length: 100 },
-              (_, index) => new Date().getFullYear() - index,
-            ).map((value) => (
-              <Pressable
-                key={value}
-                style={[
-                  formStyles.dateOption,
-                  year === value && formStyles.dateOptionSelected,
-                  year === value && accent.selectedChip,
-                ]}
-                onPress={() => setYear(value)}
-              >
-                <Text
-                  style={[
-                    formStyles.dateOptionText,
-                    year === value && formStyles.dateOptionTextSelected,
-                    year === value && accent.primaryText,
-                  ]}
-                >
-                  {value}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+const monthNames = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'Máj', 'Jún',
+  'Júl', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec',
+]
 
-          <Text style={formStyles.pickerLabel}>Mesiac</Text>
+function WebDatePickerModal({
+  visible,
+  initialDate,
+  defaultDate,
+  onClose,
+  onSelect,
+}: Props) {
+  const accent = useAccentStyles()
+  const base = initialDate ?? defaultDate ?? fallbackDate()
+  const [year, setYear] = useState(base.getFullYear())
+  const [month, setMonth] = useState(base.getMonth())
+  const [day, setDay] = useState(base.getDate())
+
+  useEffect(() => {
+    if (!visible) return
+    const next = initialDate ?? defaultDate ?? fallbackDate()
+    setYear(next.getFullYear())
+    setMonth(next.getMonth())
+    setDay(next.getDate())
+  }, [visible, initialDate, defaultDate])
+
+  if (!visible) return null
+  const dayCount = new Date(year, month + 1, 0).getDate()
+
+  return (
+    <SystemModal visible transparent animationType="fade" onRequestClose={onClose}>
+      <View style={formStyles.modalOverlay}>
+        <View style={formStyles.modalSheet}>
+          <Text style={formStyles.modalTitle}>Vyber dátum</Text>
           <View style={formStyles.monthGrid}>
-            {months.map((name, index) => (
+            {monthNames.map((name, index) => (
               <Pressable
                 key={name}
                 style={[
@@ -111,53 +149,45 @@ export function DatePickerModal({
                 ]}
                 onPress={() => setMonth(index)}
               >
-                <Text
-                  style={[
-                    formStyles.dateOptionText,
-                    month === index && formStyles.dateOptionTextSelected,
-                    month === index && accent.primaryText,
-                  ]}
-                >
-                  {name}
-                </Text>
+                <Text style={formStyles.dateOptionText}>{name}</Text>
               </Pressable>
             ))}
           </View>
-
-          <Text style={formStyles.pickerLabel}>Deň</Text>
           <View style={formStyles.dayGrid}>
-            {days.map((value) => (
+            {Array.from({ length: dayCount }, (_, index) => index + 1).map((value) => (
               <Pressable
                 key={value}
                 style={[
                   formStyles.dayOption,
                   day === value && formStyles.dateOptionSelected,
-                  day === value && accent.selectedChip,
                 ]}
                 onPress={() => setDay(value)}
               >
-                <Text
-                  style={[
-                    formStyles.dateOptionText,
-                    day === value && formStyles.dateOptionTextSelected,
-                    day === value && accent.primaryText,
-                  ]}
-                >
-                  {value}
-                </Text>
+                <Text style={formStyles.dateOptionText}>{value}</Text>
               </Pressable>
             ))}
           </View>
-
+          <View style={formStyles.optionRow}>
+            {Array.from({ length: 115 }, (_, index) => new Date().getFullYear() + 14 - index).map((value) => (
+              <Pressable
+                key={value}
+                style={[
+                  formStyles.dateOption,
+                  year === value && formStyles.dateOptionSelected,
+                ]}
+                onPress={() => setYear(value)}
+              >
+                <Text style={formStyles.dateOptionText}>{value}</Text>
+              </Pressable>
+            ))}
+          </View>
           <View style={formStyles.modalActions}>
             <Pressable onPress={onClose}>
               <Text style={formStyles.cancelText}>Zrušiť</Text>
             </Pressable>
             <Pressable
               style={[formStyles.saveDateButton, accent.primaryButton]}
-              onPress={() =>
-                onSelect(new Date(year, month, Math.min(day, days.length)))
-              }
+              onPress={() => onSelect(new Date(year, month, Math.min(day, dayCount)))}
             >
               <Text style={[formStyles.saveDateText, accent.primaryText]}>OK</Text>
             </Pressable>

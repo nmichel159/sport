@@ -1,5 +1,4 @@
 import {
-  KeyboardAvoidingView,
   Modal,
   Platform,
   type ModalProps,
@@ -29,19 +28,13 @@ export function SystemModal({
         edges={['top', 'right', 'bottom', 'left']}
         style={{ flex: 1 }}
       >
-        <KeyboardAvoidingView
+        <KeyboardAwareScrollView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          contentContainerStyle={{ flexGrow: 1 }}
+          keyboardDismissMode="on-drag"
         >
-          <KeyboardAwareScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={{ flexGrow: 1 }}
-            automaticallyAdjustKeyboardInsets
-            keyboardDismissMode="on-drag"
-          >
-            {children}
-          </KeyboardAwareScrollView>
-        </KeyboardAvoidingView>
+          {children}
+        </KeyboardAwareScrollView>
       </SafeAreaView>
     </Modal>
   )

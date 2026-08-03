@@ -1,6 +1,4 @@
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   Text,
   View,
@@ -20,14 +18,13 @@ type Props = {
   completeOnboarding: (data: OnboardingData) => Promise<void>
 }
 
+const defaultBirthDate = new Date(2000, 0, 1)
+
 export function OnboardingScreen(props: Props) {
   const form = useOnboardingForm(props)
 
   return (
-    <KeyboardAvoidingView
-      style={formStyles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <View style={formStyles.flex}>
       <KeyboardAwareScrollView
         contentContainerStyle={formStyles.onboardingContainer}
         automaticallyAdjustKeyboardInsets
@@ -146,12 +143,14 @@ export function OnboardingScreen(props: Props) {
       <DatePickerModal
         visible={form.showDatePicker}
         initialDate={form.birthDate}
+        defaultDate={defaultBirthDate}
+        maximumDate={new Date()}
         onClose={() => form.setShowDatePicker(false)}
         onSelect={(date) => {
           form.setBirthDate(date)
           form.setShowDatePicker(false)
         }}
       />
-    </KeyboardAvoidingView>
+    </View>
   )
 }
