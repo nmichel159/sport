@@ -60,6 +60,7 @@ from app.services.brackets import (
     select_group_qualifiers,
     single_elimination_layout,
 )
+from app.services.tournament_revision import bump_tournament_revision
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 
@@ -436,6 +437,9 @@ def group_stage_read(
                 id=group.id,
                 position=group.position,
                 name=group.name,
+                participants=[
+                    participant(member.registration_id) for member in members
+                ],
                 standings=[
                     GroupStandingRead(
                         rank=index + 1,
@@ -912,6 +916,7 @@ def register_for_event(
         db.add(
             OrganizationEventRegistration(event_id=event.id, user_id=user.id)
         )
+    bump_tournament_revision(event)
     db.commit()
     return event_read(event, db)
 
@@ -1080,6 +1085,7 @@ def create_event(
             for category in payload.categories
         ]
     )
+    bump_tournament_revision(event)
     db.commit()
     return organization_read(organization, db)
 
@@ -1163,6 +1169,7 @@ def update_event(
             for category in payload.categories
         ]
     )
+    bump_tournament_revision(event)
     db.commit()
     return organization_read(organization, db)
 
@@ -1293,6 +1300,7 @@ def generate_event_group_stage(
                 )
             )
 
+    bump_tournament_revision(event)
     db.commit()
     return group_stage_read(event, db)
 
@@ -1336,6 +1344,7 @@ def update_event_group_match_score(
             else None
         )
     )
+    bump_tournament_revision(event)
     db.commit()
     return group_stage_read(event, db)
 
@@ -1505,6 +1514,7 @@ def finalize_event_group_stage(
         db,
     )
     stage.locked_at = datetime.now(timezone.utc)
+    bump_tournament_revision(event)
     db.commit()
     return group_stage_read(event, db)
 
@@ -1570,6 +1580,7 @@ def generate_event_bracket(
         first_round_pairs,
         db,
     )
+    bump_tournament_revision(event)
     db.commit()
     return bracket_read(event, db)
 
@@ -1615,6 +1626,7 @@ def update_event_match_score(
         else match.participant_b_registration_id
     )
     place_winner(match, match.winner_registration_id, db)
+    bump_tournament_revision(event)
     db.commit()
     return bracket_read(event, db)
 

@@ -222,6 +222,7 @@ class EventGroupRead(BaseModel):
     id: UUID
     position: int
     name: str
+    participants: list[GroupParticipantRead] = Field(default_factory=list)
     standings: list[GroupStandingRead]
     matches: list[GroupMatchRead]
 
@@ -236,6 +237,45 @@ class EventGroupStageRead(BaseModel):
     completed_matches: int
     total_matches: int
     groups: list[EventGroupRead]
+
+
+class TournamentPlayerRead(BaseModel):
+    id: UUID
+    name: str
+
+
+class TournamentRegistrationRead(EventRegistrationRead):
+    players: list[TournamentPlayerRead] = Field(default_factory=list)
+
+
+class TournamentRevisionRead(BaseModel):
+    event_id: UUID
+    revision: int
+    updated_at: datetime
+
+
+class TournamentMatchDetailInput(StrictInput):
+    match_id: UUID
+    pitch: str | None = Field(default=None, max_length=40)
+    scheduled_start: time | None = None
+    mvp_user_id: UUID | None = None
+    scorers: list[MatchResultScorerInput] = Field(default_factory=list)
+
+
+class TournamentStateRead(TournamentRevisionRead):
+    event: EventRead
+    registrations: list[TournamentRegistrationRead]
+    bracket: EventBracketRead
+    group_stage: EventGroupStageRead
+    match_details: list[MatchResultRead] = Field(default_factory=list)
+
+
+class TournamentStateUpdate(StrictInput):
+    base_revision: int = Field(ge=0)
+    client_mutation_id: UUID
+    bracket: EventBracketRead
+    group_stage: EventGroupStageRead
+    match_details: list[TournamentMatchDetailInput] = Field(default_factory=list)
 
 
 class OrganizationRead(BaseModel):

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   Pressable,
@@ -17,12 +17,8 @@ import type {
   BracketMatch,
   EventBracket,
   EventGroupStage,
-  GroupMatch,
 } from '../../../types/domain'
-import {
-  requestEventBracket,
-  requestEventGroupStage,
-} from '../services/organizationApi'
+import { useOfflineTournament } from '../hooks/useOfflineTournament'
 import { GroupStageBoard } from './GroupStageBoard'
 import { MatchResultModal } from './MatchResultModal'
 
@@ -33,6 +29,9 @@ type Props = {
   onBack: () => void
   backLabel?: string
 }
+
+type OfflineTournament = ReturnType<typeof useOfflineTournament>
+type PanelProps = Props & { offline: OfflineTournament }
 
 const errorMessages: Record<string, string> = {
   NOT_ENOUGH_PARTICIPANTS:
@@ -77,34 +76,15 @@ function participantName(
 
 function SingleEliminationTournamentPanel({
   event,
-  organizationId,
-  fetcher,
   onBack,
   backLabel = 'Späť na možnosti',
-}: Props) {
+  offline,
+}: PanelProps) {
   const accent = useAccentStyles()
-  const [bracket, setBracket] = useState<EventBracket | null>(null)
+  const bracket: EventBracket | null = offline.snapshot?.bracket ?? null
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState('')
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    let active = true
-    void requestEventBracket(fetcher, organizationId, event.id)
-      .then((result) => {
-        if (active) setBracket(result)
-      })
-      .catch(() => {
-        if (active) setError('Rozpis zápasov sa nepodarilo načítať.')
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
-    }
-  }, [event.id, fetcher, organizationId])
 
   const rounds = useMemo(
     () =>
@@ -141,15 +121,7 @@ function SingleEliminationTournamentPanel({
     setBusyId('generate')
     setError('')
     try {
-      setBracket(
-        await requestEventBracket(
-          fetcher,
-          organizationId,
-          event.id,
-          'POST',
-          '/generate',
-        ),
-      )
+      await offline.generateBracket()
     } catch (caught) {
       showError(caught, 'Pavúka sa nepodarilo vygenerovať.')
     } finally {
@@ -187,9 +159,26 @@ function SingleEliminationTournamentPanel({
           </View>
         ) : null}
       </View>
+      <Text style={teamStyles.muted}>
+        {offline.offline
+          ? offline.pendingCount
+            ? `Offline · ${offline.pendingCount} zmien čaká na synchronizáciu`
+            : 'Offline · používa sa uložený stav turnaja'
+          : offline.syncing
+            ? 'Synchronizujem zmeny…'
+            : 'Turnaj je dostupný offline'}
+      </Text>
 
-      {loading ? (
+      {offline.loading ? (
         <ActivityIndicator color={accent.accentText.color} size="large" />
+      ) : !offline.snapshot ? (
+        <View style={bracketStyles.empty}>
+          <Text style={teamStyles.title}>Turnaj ešte nie je uložený v mobile</Text>
+          <Text style={bracketStyles.centeredHint}>
+            Pri prvom otvorení je potrebné internetové pripojenie. Potom bude
+            celý turnaj dostupný aj offline.
+          </Text>
+        </View>
       ) : !['SINGLE_ELIMINATION', 'GROUPS_THEN_ELIMINATION'].includes(
           event.format_code ?? '',
         ) ? (
@@ -325,23 +314,22 @@ function SingleEliminationTournamentPanel({
           </View>
         </ZoomableBracket>
       )}
-      {error ? <Text style={formStyles.error}>{error}</Text> : null}
+      {error || offline.error ? (
+        <Text style={formStyles.error}>
+          {error || errorMessages[offline.error] || offline.error}
+        </Text>
+      ) : null}
       <MatchResultModal
         visible={selectedMatchId !== null}
-        match={
+        detail={
           selectedMatchId
-            ? { id: selectedMatchId, kind: 'BRACKET' }
+            ? offline.getMatchDetail('BRACKET', selectedMatchId)
             : null
         }
-        organizationId={organizationId}
-        eventId={event.id}
-        fetcher={fetcher}
         onClose={() => setSelectedMatchId(null)}
-        onSaved={async () => {
-          setBracket(
-            await requestEventBracket(fetcher, organizationId, event.id),
-          )
-        }}
+        onSave={(payload) =>
+          offline.saveResult('BRACKET', selectedMatchId!, payload)
+        }
       />
     </View>
   )
@@ -363,10 +351,11 @@ function GroupTournamentPanel({
   organizationId,
   fetcher,
   onBack,
-}: Props) {
+  offline,
+}: PanelProps) {
   const accent = useAccentStyles()
   const suggestedGroups = suggestedGroupCount(event.registrations.length)
-  const [stage, setStage] = useState<EventGroupStage | null>(null)
+  const stage: EventGroupStage | null = offline.snapshot?.group_stage ?? null
   const [groupCount, setGroupCount] = useState(suggestedGroups.toString())
   const [advancingCount, setAdvancingCount] = useState(
     Math.min(
@@ -376,27 +365,9 @@ function GroupTournamentPanel({
   )
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
   const [view, setView] = useState<'groups' | 'bracket'>('groups')
-  const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState('')
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    let active = true
-    void requestEventGroupStage(fetcher, organizationId, event.id)
-      .then((result) => {
-        if (active) setStage(result)
-      })
-      .catch(() => {
-        if (active) setError('Skupinovú časť sa nepodarilo načítať.')
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
-    }
-  }, [event.id, fetcher, organizationId])
 
   const showError = (caught: unknown, fallback: string) => {
     const code = caught instanceof Error ? caught.message : ''
@@ -434,16 +405,7 @@ function GroupTournamentPanel({
     setBusyId('generate-groups')
     setError('')
     try {
-      setStage(
-        await requestEventGroupStage(
-          fetcher,
-          organizationId,
-          event.id,
-          'POST',
-          '/generate',
-          { group_count: groups, advancing_count: advancing },
-        ),
-      )
+      await offline.generateGroups(groups, advancing)
     } catch (caught) {
       showError(caught, 'Skupiny sa nepodarilo vytvoriť.')
     } finally {
@@ -455,15 +417,7 @@ function GroupTournamentPanel({
     setBusyId('finalize')
     setError('')
     try {
-      setStage(
-        await requestEventGroupStage(
-          fetcher,
-          organizationId,
-          event.id,
-          'POST',
-          '/finalize',
-        ),
-      )
+      await offline.finalizeGroups()
       setConfirming(false)
     } catch (caught) {
       showError(caught, 'Skupiny sa nepodarilo uzavrieť.')
@@ -478,6 +432,7 @@ function GroupTournamentPanel({
         event={event}
         organizationId={organizationId}
         fetcher={fetcher}
+        offline={offline}
         onBack={() => setView('groups')}
         backLabel="Späť na výsledky skupín"
       />
@@ -508,6 +463,15 @@ function GroupTournamentPanel({
           <Text style={bracketStyles.lockedBadge}>SKUPINY UZAVRETÉ</Text>
         ) : null}
       </View>
+      <Text style={teamStyles.muted}>
+        {offline.offline
+          ? offline.pendingCount
+            ? `Offline · ${offline.pendingCount} zmien čaká na synchronizáciu`
+            : 'Offline · používa sa uložený stav turnaja'
+          : offline.syncing
+            ? 'Synchronizujem zmeny…'
+            : 'Turnaj je dostupný offline'}
+      </Text>
 
       {stage?.locked ? (
         <View style={bracketStyles.phaseTabs}>
@@ -536,8 +500,16 @@ function GroupTournamentPanel({
         </View>
       ) : null}
 
-      {loading ? (
+      {offline.loading ? (
         <ActivityIndicator color={accent.accentText.color} size="large" />
+      ) : !offline.snapshot ? (
+        <View style={bracketStyles.empty}>
+          <Text style={teamStyles.title}>Turnaj ešte nie je uložený v mobile</Text>
+          <Text style={bracketStyles.centeredHint}>
+            Pri prvom otvorení je potrebné internetové pripojenie. Potom bude
+            celý turnaj dostupný aj offline.
+          </Text>
+        </View>
       ) : !stage?.generated ? (
         <View style={bracketStyles.setupCard}>
           <Text style={teamStyles.title}>Nastavenie skupinovej fázy</Text>
@@ -670,33 +642,41 @@ function GroupTournamentPanel({
           )}
         </>
       )}
-      {error ? <Text style={formStyles.error}>{error}</Text> : null}
+      {error || offline.error ? (
+        <Text style={formStyles.error}>
+          {error || errorMessages[offline.error] || offline.error}
+        </Text>
+      ) : null}
       <MatchResultModal
         visible={selectedMatchId !== null}
-        match={
+        detail={
           selectedMatchId
-            ? { id: selectedMatchId, kind: 'GROUP' }
+            ? offline.getMatchDetail('GROUP', selectedMatchId)
             : null
         }
-        organizationId={organizationId}
-        eventId={event.id}
-        fetcher={fetcher}
         editable={!stage?.locked}
         onClose={() => setSelectedMatchId(null)}
-        onSaved={async () => {
-          setStage(
-            await requestEventGroupStage(fetcher, organizationId, event.id),
-          )
-        }}
+        onSave={(payload) =>
+          offline.saveResult('GROUP', selectedMatchId!, payload)
+        }
       />
     </View>
   )
 }
 
 export function TournamentPanel(props: Props) {
-  return props.event.format_code === 'GROUPS_THEN_ELIMINATION' ? (
-    <GroupTournamentPanel {...props} />
+  const offline = useOfflineTournament({
+    event: props.event,
+    organizationId: props.organizationId,
+    fetcher: props.fetcher,
+  })
+  const currentProps = {
+    ...props,
+    event: offline.snapshot?.event ?? props.event,
+  }
+  return currentProps.event.format_code === 'GROUPS_THEN_ELIMINATION' ? (
+    <GroupTournamentPanel {...currentProps} offline={offline} />
   ) : (
-    <SingleEliminationTournamentPanel {...props} />
+    <SingleEliminationTournamentPanel {...currentProps} offline={offline} />
   )
 }

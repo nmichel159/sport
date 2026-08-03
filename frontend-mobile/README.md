@@ -1,5 +1,7 @@
 # Mobile frontend
 
+The implementation and offline-first contract are defined in [AGENTS.md](AGENTS.md).
+
 Install and start:
 
 ```bash

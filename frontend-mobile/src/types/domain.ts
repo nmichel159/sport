@@ -217,6 +217,7 @@ export type EventGroup = {
   id: string
   position: number
   name: string
+  participants: GroupParticipant[]
   standings: GroupStanding[]
   matches: GroupMatch[]
 }
@@ -231,4 +232,64 @@ export type EventGroupStage = {
   completed_matches: number
   total_matches: number
   groups: EventGroup[]
+}
+
+export type TournamentPlayer = {
+  id: string
+  name: string
+}
+
+export type TournamentRegistration = ApiRegistration & {
+  players: TournamentPlayer[]
+}
+
+export type TournamentRevision = {
+  event_id: string
+  revision: number
+  updated_at: string
+}
+
+export type TournamentStateResponse = TournamentRevision & {
+  event: ApiEvent
+  registrations: TournamentRegistration[]
+  bracket: EventBracket
+  group_stage: EventGroupStage
+  match_details: MatchResultDetail[]
+}
+
+export type TournamentSnapshot = TournamentRevision & {
+  event: ApiEvent
+  registrations: TournamentRegistration[]
+  bracket: EventBracket
+  group_stage: EventGroupStage
+  match_details: Record<string, MatchResultDetail>
+}
+
+export type TournamentOperation =
+  | {
+      id: string
+      type: 'GENERATE_BRACKET'
+    }
+  | {
+      id: string
+      type: 'GENERATE_GROUPS'
+      group_count: number
+      advancing_count: number
+    }
+  | {
+      id: string
+      type: 'SAVE_RESULT'
+      kind: 'BRACKET' | 'GROUP'
+      match_id: string
+      payload: MatchResultPayload
+    }
+  | {
+      id: string
+      type: 'FINALIZE_GROUPS'
+      locked_at: string
+    }
+
+export type CachedTournament = {
+  snapshot: TournamentSnapshot
+  pending_operations: TournamentOperation[]
 }

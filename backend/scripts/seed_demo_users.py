@@ -57,6 +57,22 @@ PLAYERS = [
 ]
 
 NORO_GOOGLE_SUBJECT = "112593596799709738455"
+NORO_64_PLAYER_EVENT_NAME = "64-player test bracket"
+
+# Separate player accounts for a complete 64-slot elimination bracket. Keeping
+# their identifiers deterministic makes the seed safe to run repeatedly.
+BRACKET_64_PLAYERS = [
+    (
+        f"bracket.player.{number:02d}@example.test",
+        f"bracket_player_{number:02d}",
+        f"Player {number:02d}",
+        "Bracket",
+        date(2000 + number % 8, number % 12 + 1, number % 28 + 1),
+        "male" if number % 2 else "female",
+        "Bratislava",
+    )
+    for number in range(1, 65)
+]
 NORO_GROUPS_EVENT_NAME = "Demo – skupiny + pavúk – 12 hráčov"
 
 
@@ -251,18 +267,86 @@ def seed_noro_groups_tournament(
     return event
 
 
+def seed_noro_64_player_bracket(
+    db,
+    noro: User,
+    users: dict[str, User],
+    organization: Organization,
+    tournament_format: TournamentFormat,
+) -> OrganizationEvent:
+    event = db.scalar(
+        select(OrganizationEvent).where(
+            OrganizationEvent.organization_id == organization.id,
+            OrganizationEvent.name == NORO_64_PLAYER_EVENT_NAME,
+        )
+    )
+    if not event:
+        event = OrganizationEvent(
+            organization_id=organization.id,
+            created_by_user_id=noro.id,
+            name=NORO_64_PLAYER_EVENT_NAME,
+            sport="Basketbal",
+            participation_type="INDIVIDUAL",
+            format_id=tournament_format.id,
+            event_date=date(2026, 8, 23),
+            location="Bratislava - test hall",
+            description="Demo elimination bracket with 64 players.",
+            fee=0,
+        )
+        db.add(event)
+        db.flush()
+    else:
+        event.format_id = tournament_format.id
+
+    registrations = []
+    for email, *_ in BRACKET_64_PLAYERS:
+        registration = db.scalar(
+            select(OrganizationEventRegistration).where(
+                OrganizationEventRegistration.event_id == event.id,
+                OrganizationEventRegistration.user_id == users[email].id,
+            )
+        )
+        if not registration:
+            registration = OrganizationEventRegistration(
+                event_id=event.id,
+                user_id=users[email].id,
+            )
+            db.add(registration)
+            db.flush()
+        registrations.append(registration)
+
+    if not db.scalar(
+        select(OrganizationEventMatch.id).where(
+            OrganizationEventMatch.event_id == event.id
+        )
+    ):
+        create_persisted_bracket(db, event, registrations)
+    return event
+
+
 def main() -> None:
     _, schools = get_catalog("schools")
     db = SessionLocal()
     try:
         added = 0
-        for email, nickname, first_name, last_name, birth_date, gender, city in PLAYERS:
+        for email, nickname, first_name, last_name, birth_date, gender, city in (
+            PLAYERS + BRACKET_64_PLAYERS
+        ):
             if db.scalar(select(User).where(User.email == email)):
                 continue
             db.add(User(email=email, email_verified=True, nickname=nickname, first_name=first_name, last_name=last_name, birth_date=birth_date, gender=gender, display_name=f"{first_name} {last_name}", school_code=school_for_city(schools, city), district_city=city, onboarding_completed=True))
             added += 1
         db.commit()
-        users = {user.email: user for user in db.scalars(select(User).where(User.email.in_([player[0] for player in PLAYERS]))).all()}
+        users = {
+            user.email: user
+            for user in db.scalars(
+                select(User).where(
+                    User.email.in_(
+                        [player[0] for player in PLAYERS + BRACKET_64_PLAYERS]
+                    )
+                )
+            ).all()
+        }
         noro = users["noro.michel159@gmail.com"]
         if not db.scalar(select(AuthIdentity).where(AuthIdentity.provider == "GOOGLE", AuthIdentity.provider_subject == NORO_GOOGLE_SUBJECT)):
             db.add(AuthIdentity(user_id=noro.id, provider="GOOGLE", provider_subject=NORO_GOOGLE_SUBJECT, provider_email=noro.email, provider_email_verified=True))
@@ -333,6 +417,13 @@ def main() -> None:
             users,
             noro_organization,
             groups_then_elimination,
+        )
+        seed_noro_64_player_bracket(
+            db,
+            noro,
+            users,
+            noro_organization,
+            single_elimination,
         )
 
         for code, name in (("basketball", "Basketbal"), ("football", "Futbal"), ("floorball", "Florbal")):

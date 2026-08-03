@@ -43,14 +43,14 @@ export function DashboardScreen({ name, userId, onSignOut }: Props) {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    void loadDashboard(authenticatedFetch)
+    void loadDashboard(authenticatedFetch, userId)
       .then((data) => {
         setTeams(data.teams)
         setOrganizations(data.organizations)
         setEvents(data.events)
       })
       .catch(() => setError('Dáta sa nepodarilo načítať.'))
-  }, [authenticatedFetch])
+  }, [authenticatedFetch, userId])
 
   const create = async (teamName: string) => {
     const team = await createTeam(authenticatedFetch, teamName)

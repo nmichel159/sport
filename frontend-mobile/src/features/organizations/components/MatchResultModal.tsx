@@ -10,25 +10,16 @@ import { AppTextInput } from '../../../components/AppTextInput'
 import { SystemModal } from '../../../system/SystemModal'
 import { matchResultStyles as styles } from '../../../styles/matchResultStyles'
 import type {
-  AuthenticatedFetch,
   MatchResultDetail,
+  MatchResultPayload,
 } from '../../../types/domain'
-import { requestMatchResult } from '../services/organizationApi'
-
-type MatchSelection = {
-  id: string
-  kind: 'BRACKET' | 'GROUP'
-}
 
 type Props = {
   visible: boolean
-  match: MatchSelection | null
-  organizationId: string
-  eventId: string
-  fetcher: AuthenticatedFetch
+  detail: MatchResultDetail | null
   editable?: boolean
   onClose: () => void
-  onSaved: () => Promise<void> | void
+  onSave: (payload: MatchResultPayload) => Promise<void>
 }
 
 const errors: Record<string, string> = {
@@ -42,13 +33,10 @@ const errors: Record<string, string> = {
 
 export function MatchResultModal({
   visible,
-  match,
-  organizationId,
-  eventId,
-  fetcher,
+  detail: suppliedDetail,
   editable = true,
   onClose,
-  onSaved,
+  onSave,
 }: Props) {
   const [detail, setDetail] = useState<MatchResultDetail | null>(null)
   const [scoreA, setScoreA] = useState('')
@@ -62,44 +50,26 @@ export function MatchResultModal({
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!visible || !match) return
-    let active = true
-    setLoading(true)
+    if (!visible || !suppliedDetail) return
+    setLoading(false)
     setError('')
-    void requestMatchResult(
-      fetcher,
-      organizationId,
-      eventId,
-      match.kind,
-      match.id,
+    setDetail(suppliedDetail)
+    setScoreA(suppliedDetail.score_a?.toString() ?? '')
+    setScoreB(suppliedDetail.score_b?.toString() ?? '')
+    setPitch(suppliedDetail.pitch ?? '')
+    setStart(suppliedDetail.scheduled_start?.slice(0, 5) ?? '')
+    setGoals(
+      Object.fromEntries(
+        suppliedDetail.scorers.map((scorer) => [
+          scorer.user_id,
+          scorer.goals,
+        ]),
+      ),
     )
-      .then((result) => {
-        if (!active) return
-        setDetail(result)
-        setScoreA(result.score_a?.toString() ?? '')
-        setScoreB(result.score_b?.toString() ?? '')
-        setPitch(result.pitch ?? '')
-        setStart(result.scheduled_start?.slice(0, 5) ?? '')
-        setGoals(
-          Object.fromEntries(
-            result.scorers.map((scorer) => [
-              scorer.user_id,
-              scorer.goals,
-            ]),
-          ),
-        )
-        setMvpId(result.mvp_user_id)
-      })
-      .catch(() => {
-        if (active) setError('Detail zápasu sa nepodarilo načítať.')
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
-    }
-  }, [eventId, fetcher, match, organizationId, visible])
+    setMvpId(suppliedDetail.mvp_user_id)
+    // Sync status changes must not erase a result currently being typed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suppliedDetail?.match_id, visible])
 
   const playersBySide = useMemo(
     () => ({
@@ -124,7 +94,7 @@ export function MatchResultModal({
   }
 
   const save = async () => {
-    if (!detail || !match) return
+    if (!detail) return
     const parsedA = Number(scoreA)
     const parsedB = Number(scoreB)
     if (
@@ -144,30 +114,21 @@ export function MatchResultModal({
     setSaving(true)
     setError('')
     try {
-      const saved = await requestMatchResult(
-        fetcher,
-        organizationId,
-        eventId,
-        match.kind,
-        match.id,
-        {
-          score_a: parsedA,
-          score_b: parsedB,
-          pitch: pitch.trim() || null,
-          scheduled_start: start || null,
-          mvp_user_id: detail.supports_mvp ? mvpId : null,
-          scorers: detail.supports_scorers
-            ? Object.entries(goals)
-                .filter(([, count]) => count > 0)
-                .map(([userId, count]) => ({
-                  user_id: userId,
-                  goals: count,
-                }))
-            : [],
-        },
-      )
-      setDetail(saved)
-      await onSaved()
+      await onSave({
+        score_a: parsedA,
+        score_b: parsedB,
+        pitch: pitch.trim() || null,
+        scheduled_start: start || null,
+        mvp_user_id: detail.supports_mvp ? mvpId : null,
+        scorers: detail.supports_scorers
+          ? Object.entries(goals)
+              .filter(([, count]) => count > 0)
+              .map(([userId, count]) => ({
+                user_id: userId,
+                goals: count,
+              }))
+          : [],
+      })
       onClose()
     } catch (caught) {
       const code = caught instanceof Error ? caught.message : ''
@@ -197,11 +158,12 @@ export function MatchResultModal({
           >
             <Text style={styles.closeText}>×</Text>
           </Pressable>
-          {loading ? (
+          {loading ||
+          (visible && suppliedDetail?.match_id !== detail?.match_id) ? (
             <View style={{ minHeight: 320, justifyContent: 'center' }}>
               <ActivityIndicator color="#ffd400" size="large" />
             </View>
-          ) : detail ? (
+          ) : suppliedDetail && detail ? (
             <ScrollView
               contentContainerStyle={styles.content}
               keyboardShouldPersistTaps="handled"

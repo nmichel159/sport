@@ -8,10 +8,30 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
-from app.models.user import Team, TeamMember, User
+from app.models.user import (
+    OrganizationEvent,
+    OrganizationEventRegistration,
+    Team,
+    TeamMember,
+    User,
+)
 from app.schemas.team import TeamCreate, TeamMemberAdd, TeamMemberRead, TeamRead
+from app.services.tournament_revision import bump_tournament_revision
 
 router = APIRouter(prefix="/teams", tags=["teams"])
+
+
+def bump_team_tournaments(team_id: uuid.UUID, db: Session) -> None:
+    events = db.scalars(
+        select(OrganizationEvent)
+        .join(
+            OrganizationEventRegistration,
+            OrganizationEventRegistration.event_id == OrganizationEvent.id,
+        )
+        .where(OrganizationEventRegistration.team_id == team_id)
+    ).all()
+    for event in events:
+        bump_tournament_revision(event)
 
 
 def team_read(team: Team, db: Session) -> TeamRead:
@@ -73,6 +93,7 @@ def add_team_member(team_id: uuid.UUID, payload: TeamMemberAdd, db: Session = De
     if db.get(TeamMember, {"team_id": team.id, "user_id": player.id}):
         raise HTTPException(status.HTTP_409_CONFLICT, detail={"code": "PLAYER_ALREADY_IN_TEAM"})
     db.add(TeamMember(team_id=team.id, user_id=player.id))
+    bump_team_tournaments(team.id, db)
     try:
         db.commit()
     except IntegrityError:
@@ -95,5 +116,6 @@ def remove_team_member(team_id: uuid.UUID, member_id: uuid.UUID, db: Session = D
             detail={"code": "TEAM_OWNER_CANNOT_BE_REMOVED"},
         )
     db.delete(member)
+    bump_team_tournaments(team.id, db)
     db.commit()
     return team_read(team, db)
