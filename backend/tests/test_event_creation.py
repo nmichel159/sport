@@ -12,12 +12,17 @@ from sqlalchemy.pool import StaticPool
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 os.environ.setdefault("SECRET_KEY", "test-secret-key-at-least-32-bytes-long")
 
-from app.api.routes.organizations import create_event
+from app.api.routes.organizations import (
+    create_event,
+    read_participating_events,
+    read_participating_events_version,
+)
 from app.core.database import Base
 from app.models.user import (
     Organization,
     OrganizationEvent,
     OrganizationEventCategory,
+    OrganizationEventRegistration,
     OrganizationMember,
     TournamentFormat,
     User,
@@ -150,3 +155,25 @@ def test_event_categories_must_be_unique():
     category = event_payload().categories[0].model_dump()
     with pytest.raises(ValidationError):
         event_payload(categories=[category, category])
+
+
+def test_participating_events_feed_has_a_stable_version(event_db):
+    player = User(id=uuid.uuid4(), email="player@example.com", nickname="player")
+    organization = Organization(
+        id=uuid.uuid4(), owner_user_id=player.id, name="Events", slug="events"
+    )
+    event = OrganizationEvent(
+        id=uuid.uuid4(), organization_id=organization.id, created_by_user_id=player.id,
+        name="Sunday cup", sport="Futbal", event_date=date(2026, 8, 9),
+    )
+    event_db.add_all([player, organization, event])
+    event_db.flush()
+    event_db.add(OrganizationEventRegistration(event_id=event.id, user_id=player.id))
+    event_db.commit()
+
+    result = read_participating_events(event_db, player)
+    version = read_participating_events_version(event_db, player)
+
+    assert [item.name for item in result.events] == ["Sunday cup"]
+    assert len(result.version) == 16
+    assert version.version == result.version

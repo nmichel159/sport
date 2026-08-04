@@ -1,129 +1,13 @@
-import { useState } from 'react'
-import { Pressable, Text, View } from 'react-native'
-import { AppTextInput } from '../../../components/AppTextInput'
-import { teamColors } from '../../../constants/teamColors'
-import { formStyles } from '../../../styles/formStyles'
+import { Text, View } from 'react-native'
 import { mainStyles } from '../../../styles/mainStyles'
-import { teamStyles } from '../../../styles/teamStyles'
-import type { ApiTeam } from '../../../types/domain'
-import { ThemeSettings } from './ThemeSettings'
 import { useTheme } from '../../../theme/ThemeContext'
-import { useAccentStyles } from '../../../theme/useAccentStyles'
+import type { ApiTeam } from '../../../types/domain'
+import { MyTeamsPanel } from './MyTeamsPanel'
+import { ThemeSettings } from './ThemeSettings'
 
-type Props = {
-  name: string
-  teams: ApiTeam[]
-  onCreate: (name: string) => Promise<void>
-  onOpen: (id: string) => void
-}
+type Props = { name: string; teams: ApiTeam[]; onCreate: (name: string) => Promise<void>; onOpen: (id: string) => void }
 
-export function TeamsProfileContent({
-  name,
-  teams,
-  onCreate,
-  onOpen,
-}: Props) {
+export function TeamsProfileContent({ name, teams, onCreate, onOpen }: Props) {
   const { theme } = useTheme()
-  const accent = useAccentStyles()
-  const [creating, setCreating] = useState(false)
-  const [teamName, setTeamName] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState('')
-
-  const create = async () => {
-    if (!teamName.trim()) return
-
-    setBusy(true)
-    setMessage('')
-
-    try {
-      await onCreate(teamName)
-      setTeamName('')
-      setCreating(false)
-    } catch {
-      setMessage('Tím sa nepodarilo vytvoriť.')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <>
-      <View style={mainStyles.profileCard}>
-        <View style={[mainStyles.avatar, { backgroundColor: theme.primary }]}>
-          <Text style={mainStyles.avatarText}>
-            {name.slice(0, 1).toUpperCase()}
-          </Text>
-        </View>
-        <Text style={mainStyles.profileName}>{name}</Text>
-      </View>
-
-      <ThemeSettings />
-
-      <View style={teamStyles.section}>
-        <Text style={teamStyles.sectionTitle}>MOJE TÍMY</Text>
-        {teams.map((team, index) => (
-          <Pressable
-            key={team.id}
-            style={teamStyles.card}
-            onPress={() => onOpen(team.id)}
-          >
-            <View
-              style={[
-                teamStyles.badge,
-                {
-                  backgroundColor:
-                    teamColors[index % teamColors.length],
-                },
-              ]}
-            >
-              <Text style={teamStyles.badgeText}>
-                {team.name.slice(0, 2).toUpperCase()}
-              </Text>
-            </View>
-            <View style={teamStyles.info}>
-              <Text style={teamStyles.title}>{team.name}</Text>
-              <Text style={teamStyles.muted}>
-                {team.members.length} členovia
-              </Text>
-            </View>
-          </Pressable>
-        ))}
-
-        {creating ? (
-          <View style={teamStyles.form}>
-            <Text style={teamStyles.title}>Vytvoriť tím</Text>
-            <AppTextInput
-              value={teamName}
-              onChangeText={setTeamName}
-              placeholder="Názov tímu"
-              placeholderTextColor="#9aa0a8"
-              style={formStyles.input}
-            />
-            <View style={teamStyles.actions}>
-              <Pressable onPress={() => setCreating(false)}>
-                <Text style={teamStyles.cancel}>Zrušiť</Text>
-              </Pressable>
-              <Pressable
-                style={[teamStyles.primary, accent.primaryButton]}
-                onPress={() => void create()}
-                disabled={busy}
-              >
-                <Text style={[teamStyles.primaryText, accent.primaryText]}>Vytvoriť</Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : (
-          <Pressable
-            style={[teamStyles.button, accent.outlineButton]}
-            onPress={() => setCreating(true)}
-          >
-            <Text style={[teamStyles.buttonText, accent.accentText]}>+ Vytvoriť tím</Text>
-          </Pressable>
-        )}
-      </View>
-
-      {message ? <Text style={formStyles.error}>{message}</Text> : null}
-    </>
-  )
+  return <><View style={mainStyles.profileCard}><View style={[mainStyles.avatar, { backgroundColor: theme.primary }]}><Text style={mainStyles.avatarText}>{name.slice(0, 1).toUpperCase()}</Text></View><Text style={mainStyles.profileName}>{name}</Text></View><ThemeSettings /><MyTeamsPanel teams={teams} onCreate={onCreate} onOpen={onOpen} /></>
 }

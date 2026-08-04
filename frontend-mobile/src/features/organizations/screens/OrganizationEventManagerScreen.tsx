@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { teamStyles } from '../../../styles/teamStyles'
 import { useAccentStyles } from '../../../theme/useAccentStyles'
@@ -18,6 +18,7 @@ type Props = {
   onCreate: (payload: EventPayload) => Promise<void>
   onUpdate: (eventId: string, payload: EventPayload) => Promise<void>
   message: string
+  createEventRequest?: number
 }
 
 export function OrganizationEventManagerScreen({
@@ -26,10 +27,15 @@ export function OrganizationEventManagerScreen({
   onCreate,
   onUpdate,
   message,
+  createEventRequest = 0,
 }: Props) {
   const accent = useAccentStyles()
   const [openedEvent, setOpenedEvent] = useState<ApiEvent | null>(null)
   const [creatingEvent, setCreatingEvent] = useState(false)
+
+  useEffect(() => {
+    if (createEventRequest > 0) setCreatingEvent(true)
+  }, [createEventRequest])
 
   if (openedEvent) {
     return (
@@ -51,12 +57,6 @@ export function OrganizationEventManagerScreen({
           <Text style={teamStyles.muted}>Eventy organizácie</Text>
         </View>
       </View>
-      <Pressable
-        style={[teamStyles.primary, accent.primaryButton]}
-        onPress={() => setCreatingEvent(true)}
-      >
-        <Text style={[teamStyles.primaryText, accent.primaryText]}>＋ Vytvoriť event</Text>
-      </Pressable>
       <OrganizationEventList
         events={organization.events}
         onOpen={setOpenedEvent}

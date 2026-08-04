@@ -6,6 +6,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView'
 
+type SystemModalProps = ModalProps & {
+  /** Lets camera and media views paint behind Android's system bars. */
+  edgeToEdge?: boolean
+}
+
 /**
  * React Native modals use a separate Android window. Make that window
  * edge-to-edge too, then keep interactive content inside the safe area.
@@ -15,8 +20,9 @@ export function SystemModal({
   visible = true,
   navigationBarTranslucent = Platform.OS === 'android',
   statusBarTranslucent = Platform.OS === 'android',
+  edgeToEdge = false,
   ...props
-}: ModalProps) {
+}: SystemModalProps) {
   return (
     <Modal
       {...props}
@@ -24,7 +30,7 @@ export function SystemModal({
       navigationBarTranslucent={navigationBarTranslucent}
       statusBarTranslucent={statusBarTranslucent}
     >
-      <SafeAreaView
+      {edgeToEdge ? children : <SafeAreaView
         edges={['top', 'right', 'bottom', 'left']}
         style={{ flex: 1 }}
       >
@@ -35,7 +41,7 @@ export function SystemModal({
         >
           {children}
         </KeyboardAwareScrollView>
-      </SafeAreaView>
+      </SafeAreaView>}
     </Modal>
   )
 }

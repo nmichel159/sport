@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { OrganizationManagerScreen } from '../../organizations/screens/OrganizationManagerScreen'
 import { eventTabStyles } from '../../../styles/eventTabStyles'
@@ -11,6 +11,9 @@ import type {
 import { EventList } from '../components/EventList'
 import { EventDetailScreen } from './EventDetailScreen'
 import { useTheme } from '../../../theme/ThemeContext'
+import { DiscoveryFilters, type DiscoveryFilterValue } from '../components/DiscoveryFilters'
+import { loadSports } from '../../../services/catalogs'
+import { SLOVAK_REGIONS } from '../../organizations/eventFormOptions'
 
 type EventSection = 'mine' | 'discover' | 'organization'
 
@@ -43,6 +46,14 @@ export function EventsHubScreen({
   const [section, setSection] = useState<EventSection>('discover')
   const [active, setActive] = useState<ApiEvent | null>(null)
   const [message, setMessage] = useState('')
+  const [createEventRequest, setCreateEventRequest] = useState(0)
+  const [discoveryFilters, setDiscoveryFilters] = useState<DiscoveryFilterValue>({ sports: [], regions: [] })
+  const [catalogSports, setCatalogSports] = useState<string[]>([])
+  const setFilters = useCallback((value: DiscoveryFilterValue) => setDiscoveryFilters(value), [])
+
+  useEffect(() => {
+    void loadSports().then((items) => setCatalogSports(items.map((item) => item.name))).catch(() => undefined)
+  }, [])
 
   const register = async (event: ApiEvent, teamId?: string) => {
     try {
@@ -82,6 +93,13 @@ export function EventsHubScreen({
           ownTeamIds.has(registration.team_id)),
     ),
   )
+  const eventSports = useMemo(() => [...new Set(events.map((event) => event.sport).filter(Boolean))].sort(), [events])
+  const availableSports = catalogSports.length ? catalogSports : eventSports
+  const availableRegions = Array.from(SLOVAK_REGIONS)
+  const discoveredEvents = events.filter((event) =>
+    (!discoveryFilters.sports.length || discoveryFilters.sports.includes(event.sport)) &&
+    (!discoveryFilters.regions.length || discoveryFilters.regions.includes(event.region ?? '')),
+  )
 
   if (active) {
     return (
@@ -102,6 +120,24 @@ export function EventsHubScreen({
 
   return (
     <>
+      <View style={eventTabStyles.topActions}>
+          <Text style={eventTabStyles.topActionTitle}>Eventy</Text>
+          <View style={eventTabStyles.actionButtons}>
+          {section === 'discover' ? <DiscoveryFilters sports={availableSports} regions={availableRegions} value={discoveryFilters} onChange={setFilters} /> : null}
+          {organizations.length ? (
+          <Pressable
+            accessibilityLabel="Pridať event"
+            onPress={() => {
+              setSection('organization')
+              setCreateEventRequest((current) => current + 1)
+            }}
+            style={[eventTabStyles.addButton, { backgroundColor: theme.primary }]}
+          >
+            <Text style={[eventTabStyles.addButtonText, { color: theme.onPrimary }]}>+</Text>
+          </Pressable>
+          ) : null}
+          </View>
+        </View>
       <View style={eventTabStyles.tabs}>
         {tabs.map((item) => (
           <Pressable
@@ -132,10 +168,11 @@ export function EventsHubScreen({
           organizations={organizations}
           setOrganizations={setOrganizations}
           fetcher={fetcher}
+          createEventRequest={createEventRequest}
         />
       ) : (
         <EventList
-          events={section === 'mine' ? myEvents : events}
+          events={section === 'mine' ? myEvents : discoveredEvents}
           onOpen={setActive}
           emptyTitle={
             section === 'mine'

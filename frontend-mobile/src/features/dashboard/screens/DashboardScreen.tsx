@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Text, View } from 'react-native'
 import { BottomNavigation } from '../../../components/BottomNavigation'
 import { KeyboardAwareScrollView } from '../../../components/KeyboardAwareScrollView'
@@ -18,7 +18,7 @@ import type {
 } from '../../../types/domain'
 import { addTeamPlayer, createTeam } from '../../teams/services/teamApi'
 import { AppHeader } from '../components/AppHeader'
-import { loadDashboard } from '../services/dashboardApi'
+import { loadDashboard, refreshParticipatingEvents } from '../services/dashboardApi'
 
 type Props = {
   name: string
@@ -39,8 +39,10 @@ export function DashboardScreen({ name, userId, onSignOut }: Props) {
   const [teams, setTeams] = useState<ApiTeam[]>([])
   const [organizations, setOrganizations] = useState<ApiOrganization[]>([])
   const [events, setEvents] = useState<ApiEvent[]>([])
+  const [participatingEvents, setParticipatingEvents] = useState<ApiEvent[]>([])
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const hasOpenedHome = useRef(false)
 
   useEffect(() => {
     void loadDashboard(authenticatedFetch, userId)
@@ -48,6 +50,7 @@ export function DashboardScreen({ name, userId, onSignOut }: Props) {
         setTeams(data.teams)
         setOrganizations(data.organizations)
         setEvents(data.events)
+        setParticipatingEvents(data.participatingEvents)
       })
       .catch(() => setError('Dáta sa nepodarilo načítať.'))
   }, [authenticatedFetch, userId])
@@ -57,6 +60,15 @@ export function DashboardScreen({ name, userId, onSignOut }: Props) {
     setTeams((current) => [team, ...current])
     setSelectedTeamId(team.id)
   }
+
+  const refreshHomeParticipations = useCallback(async () => {
+    if (!hasOpenedHome.current) {
+      hasOpenedHome.current = true
+      return
+    }
+    const refreshed = await refreshParticipatingEvents(authenticatedFetch, userId)
+    setParticipatingEvents(refreshed)
+  }, [authenticatedFetch, userId])
 
   const addPlayer = async (teamId: string, playerNickname: string) => {
     const changed = await addTeamPlayer(
@@ -100,7 +112,14 @@ export function DashboardScreen({ name, userId, onSignOut }: Props) {
             fetcher={authenticatedFetch}
           />
         ) : tab === 'home' ? (
-          <HomeTab name={name} />
+          <HomeTab
+            name={name}
+            teams={teams}
+            participatingEvents={participatingEvents}
+            onEnterHome={refreshHomeParticipations}
+            onCreateTeam={create}
+            onOpenTeam={setSelectedTeamId}
+          />
         ) : tab === 'events' ? (
           <EventsHubScreen
             organizations={organizations}

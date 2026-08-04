@@ -22,6 +22,7 @@ type Props = {
   contentWidth: number
   contentHeight?: number
   title?: string
+  openLabel?: string
 }
 
 export function ZoomableBracket({
@@ -29,6 +30,7 @@ export function ZoomableBracket({
   contentWidth,
   contentHeight = 520,
   title = 'Turnajový pavúk',
+  openLabel = 'Otvoriť pavúka ↗',
 }: Props) {
   const [visible, setVisible] = useState(false)
   const [viewport, setViewport] = useState({ width: 0, height: 0 })
@@ -100,7 +102,7 @@ export function ZoomableBracket({
         onPress={() => setVisible(true)}
         style={styles.openButton}
       >
-        <Text style={styles.openText}>Otvoriť pavúka ↗</Text>
+        <Text style={styles.openText}>{openLabel}</Text>
       </Pressable>
 
       <Modal

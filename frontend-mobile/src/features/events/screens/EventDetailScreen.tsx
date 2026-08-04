@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
+import QRCode from 'react-native-qrcode-svg'
 import { formStyles } from '../../../styles/formStyles'
 import { mainStyles } from '../../../styles/mainStyles'
 import { teamStyles } from '../../../styles/teamStyles'
 import { useAccentStyles } from '../../../theme/useAccentStyles'
 import type { ApiEvent, ApiTeam, AuthenticatedFetch } from '../../../types/domain'
 import { MyTournamentScreen } from './MyTournamentScreen'
+import { SystemModal } from '../../../system/SystemModal'
 
 type Props = {
   event: ApiEvent
@@ -29,12 +31,22 @@ export function EventDetailScreen({
   const accent = useAccentStyles()
   const [choosing, setChoosing] = useState(false)
   const [showTournament, setShowTournament] = useState(false)
+  const [showQr, setShowQr] = useState(false)
   const ownedTeamIds = new Set(teams.map((team) => team.id))
   const isRegistered = event.registrations.some(
     (registration) =>
       registration.user_id === userId ||
       (registration.team_id !== null && ownedTeamIds.has(registration.team_id)),
   )
+  const ownRegistration = event.registrations.find(
+    (registration) => registration.user_id === userId ||
+      (registration.team_id !== null && ownedTeamIds.has(registration.team_id)),
+  )
+  const qrValue = JSON.stringify({
+    type: 'sport-pass', version: 1,
+    event: { id: event.id, name: event.name, sport: event.sport, date: event.event_date ?? null, location: event.location ?? null },
+    participant: ownRegistration ? { id: ownRegistration.id, name: ownRegistration.name, type: ownRegistration.type } : null,
+  })
 
   if (showTournament) {
     return (
@@ -55,12 +67,17 @@ export function EventDetailScreen({
       </Pressable>
 
       <View style={teamStyles.form}>
+        <View style={teamStyles.eventTitleRow}>
         <Text style={teamStyles.sectionTitle}>
           {event.sport.toUpperCase()} ·{' '}
           {event.participation_type === 'TEAM'
             ? 'TÍMOVÝ EVENT'
             : 'INDIVIDUÁLNY EVENT'}
         </Text>
+        {isRegistered ? <Pressable accessibilityLabel="Zobraziť QR vstupenku" onPress={() => setShowQr(true)} style={[teamStyles.qrButton, accent.outlineButton]}>
+          <Text style={[teamStyles.qrButtonText, accent.accentText]}>▦ QR</Text>
+        </Pressable> : null}
+        </View>
         <Text style={mainStyles.homeGreeting}>{event.name}</Text>
         <Text style={teamStyles.muted}>
           {event.event_date ?? 'Termín sa doplní'}
@@ -122,6 +139,18 @@ export function EventDetailScreen({
         {message ? <Text style={[teamStyles.buttonText, accent.accentText]}>{message}</Text> : null}
       </View>
 
+      <SystemModal visible={showQr} transparent animationType="fade" onRequestClose={() => setShowQr(false)}>
+        <Pressable style={teamStyles.qrOverlay} onPress={() => setShowQr(false)}>
+          <Pressable style={teamStyles.qrSheet} onPress={(pressEvent) => pressEvent.stopPropagation()}>
+            <Text style={teamStyles.qrTitle}>QR vstupenka</Text>
+            <Text style={teamStyles.qrSubtitle}>{event.name}</Text>
+            <View style={teamStyles.qrCodeWrap}><QRCode value={qrValue} size={220} backgroundColor="#ffffff" color="#101114" /></View>
+            <Text style={teamStyles.qrParticipant}>{ownRegistration?.name}</Text>
+            <Text style={teamStyles.muted}>Kód funguje offline a obsahuje údaje o turnaji aj účastníkovi.</Text>
+            <Pressable onPress={() => setShowQr(false)} style={[teamStyles.primary, accent.primaryButton]}><Text style={[teamStyles.primaryText, accent.primaryText]}>Zavrieť</Text></Pressable>
+          </Pressable>
+        </Pressable>
+      </SystemModal>
       <Text style={teamStyles.sectionTitle}>
         PRIHLÁSENÍ ({event.registrations.length})
       </Text>

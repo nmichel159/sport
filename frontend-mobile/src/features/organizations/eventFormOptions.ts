@@ -3,6 +3,20 @@ export const EVENT_TYPES = [
   { value: 'LEAGUE', label: 'Liga' },
 ] as const
 
+// Single source of truth for participation. Event creation derives this from
+// the selected sport, so organizers never have to classify a sport manually.
+const INDIVIDUAL_SPORTS = new Set([
+  'Beh',
+  'Bedminton',
+  'Tenis',
+  'Stolný tenis',
+  'Pickleball',
+])
+
+export function participationTypeForSport(sport: string) {
+  return INDIVIDUAL_SPORTS.has(sport) ? 'INDIVIDUAL' as const : 'TEAM' as const
+}
+
 export const AGE_GROUPS = [
   { value: 'kids', label: 'Kids', hint: '8–10 rokov' },
   { value: 'junior', label: 'Junior', hint: '11–14 rokov' },

@@ -94,6 +94,15 @@ class EventRead(BaseModel):
     registrations: list["EventRegistrationRead"] = Field(default_factory=list)
 
 
+class ParticipatingEventsRead(BaseModel):
+    version: str
+    events: list[EventRead]
+
+
+class ParticipatingEventsVersionRead(BaseModel):
+    version: str
+
+
 class EventRegistrationCreate(StrictInput):
     team_id: UUID | None = None
 

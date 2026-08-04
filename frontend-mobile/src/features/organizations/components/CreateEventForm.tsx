@@ -184,18 +184,6 @@ export function CreateEventForm({
               compact
             />
           </View>
-          <View style={formStyles.eventFormColumn}>
-            <Text style={formStyles.pickerLabel}>ÚČASŤ</Text>
-            <ChipPicker
-              options={[
-                { value: 'TEAM', label: 'Tímové' },
-                { value: 'INDIVIDUAL', label: 'Jednotlivci' },
-              ]}
-              value={form.mode}
-              onChange={(value) => form.setMode(value as typeof form.mode)}
-              compact
-            />
-          </View>
         </View>
         <Text style={teamStyles.muted}>
           {isLeague ? 'Sezónna liga v podzáložke Ligy.' : 'Turnaj, ktorý sa zobrazí v Eventoch.'}
@@ -229,6 +217,11 @@ export function CreateEventForm({
 
         <Text style={formStyles.pickerLabel}>ŠPORT</Text>
         <SportPicker sports={form.sports} value={form.sport} onChange={(sport) => { collapseCategories(); form.setSport(sport) }} />
+        {form.sport ? (
+          <Text style={teamStyles.muted}>
+            Účasť sa nastavila automaticky: {form.mode === 'TEAM' ? 'tímový šport' : 'individuálny šport'}.
+          </Text>
+        ) : null}
         </View>
 
         <View style={formStyles.eventFormSection}>

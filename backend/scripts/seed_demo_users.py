@@ -58,6 +58,7 @@ PLAYERS = [
 
 NORO_GOOGLE_SUBJECT = "112593596799709738455"
 NORO_64_PLAYER_EVENT_NAME = "64-player test bracket"
+NORO_FOOTBALL_EVENT_NAME = "Noro Football Cup – 4 tímy"
 
 # Separate player accounts for a complete 64-slot elimination bracket. Keeping
 # their identifiers deterministic makes the seed safe to run repeatedly.
@@ -324,6 +325,59 @@ def seed_noro_64_player_bracket(
     return event
 
 
+def seed_noro_football_bracket(db, noro, users, organization, tournament_format):
+    event = db.scalar(select(OrganizationEvent).where(
+        OrganizationEvent.organization_id == organization.id,
+        OrganizationEvent.name == NORO_FOOTBALL_EVENT_NAME,
+    ))
+    if not event:
+        event = OrganizationEvent(
+            organization_id=organization.id,
+            created_by_user_id=noro.id,
+            name=NORO_FOOTBALL_EVENT_NAME,
+            sport="Futbal",
+            participation_type="TEAM",
+            format_id=tournament_format.id,
+            event_date=date(2026, 8, 30),
+            location="Bratislava – ihrisko Noro Cup",
+            description="Ukážkový futbalový turnaj pre 4 tímy s pripraveným pavúkom.",
+            fee=0,
+        )
+        db.add(event)
+        db.flush()
+    else:
+        event.format_id = tournament_format.id
+
+    specs = [
+        ("Noro United", "noro-united", ("noro.michel159@gmail.com", "adam.kovac@example.test", "matej.novak@example.test")),
+        ("Bratislava Lions", "bratislava-lions", ("norbert.michel@sport.local", "tomas.benes@example.test", "jakub.varga@example.test")),
+        ("Košice Falcons", "kosice-falcons", ("nina.horvathova@example.test", "lea.malikova@example.test", "michal.urban@example.test")),
+        ("Trnava Stars", "trnava-stars", ("sara.kralova@example.test", "ema.sedlakova@example.test", "zuzana.blahova@example.test")),
+    ]
+    registrations = []
+    for name, code, emails in specs:
+        team = db.scalar(select(Team).where(Team.team_code == code))
+        if not team:
+            team = Team(name=name, team_code=code, owner_user_id=users[emails[0]].id)
+            db.add(team)
+            db.flush()
+        for email in emails:
+            if not db.get(TeamMember, {"team_id": team.id, "user_id": users[email].id}):
+                db.add(TeamMember(team_id=team.id, user_id=users[email].id))
+        registration = db.scalar(select(OrganizationEventRegistration).where(
+            OrganizationEventRegistration.event_id == event.id,
+            OrganizationEventRegistration.team_id == team.id,
+        ))
+        if not registration:
+            registration = OrganizationEventRegistration(event_id=event.id, team_id=team.id)
+            db.add(registration)
+            db.flush()
+        registrations.append(registration)
+    if not db.scalar(select(OrganizationEventMatch.id).where(OrganizationEventMatch.event_id == event.id)):
+        create_persisted_bracket(db, event, registrations)
+    return event
+
+
 def main() -> None:
     _, schools = get_catalog("schools")
     db = SessionLocal()
@@ -419,6 +473,13 @@ def main() -> None:
             groups_then_elimination,
         )
         seed_noro_64_player_bracket(
+            db,
+            noro,
+            users,
+            noro_organization,
+            single_elimination,
+        )
+        seed_noro_football_bracket(
             db,
             noro,
             users,

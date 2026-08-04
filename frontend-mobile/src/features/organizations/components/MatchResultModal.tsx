@@ -22,6 +22,12 @@ type Props = {
   onSave: (payload: MatchResultPayload) => Promise<void>
 }
 
+type GoalEntry = {
+  id: string
+  side: 'A' | 'B'
+  scorerId: string | null
+}
+
 const errors: Record<string, string> = {
   DRAW_NOT_ALLOWED: 'V pavúku nemôže zápas skončiť remízou.',
   SCORER_TOTAL_MISMATCH:
@@ -43,8 +49,10 @@ export function MatchResultModal({
   const [scoreB, setScoreB] = useState('')
   const [pitch, setPitch] = useState('')
   const [start, setStart] = useState('')
-  const [goals, setGoals] = useState<Record<string, number>>({})
+  const [goalEntries, setGoalEntries] = useState<GoalEntry[]>([])
+  const [expandedGoalId, setExpandedGoalId] = useState<string | null>(null)
   const [mvpId, setMvpId] = useState<string | null>(null)
+  const [mvpExpanded, setMvpExpanded] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -58,15 +66,26 @@ export function MatchResultModal({
     setScoreB(suppliedDetail.score_b?.toString() ?? '')
     setPitch(suppliedDetail.pitch ?? '')
     setStart(suppliedDetail.scheduled_start?.slice(0, 5) ?? '')
-    setGoals(
-      Object.fromEntries(
-        suppliedDetail.scorers.map((scorer) => [
-          scorer.user_id,
-          scorer.goals,
-        ]),
-      ),
+    const playerSide = new Map(suppliedDetail.players.map((player) => [player.id, player.side]))
+    const restored = suppliedDetail.scorers.flatMap((scorer, scorerIndex) =>
+      Array.from({ length: scorer.goals }, (_, goalIndex) => ({
+        id: `saved-${scorer.user_id}-${scorerIndex}-${goalIndex}`,
+        side: playerSide.get(scorer.user_id) ?? 'A',
+        scorerId: scorer.user_id,
+      })),
     )
+    const addUnassigned = (side: 'A' | 'B', score: number | null) => {
+      const missing = Math.max(0, (score ?? 0) - restored.filter((goal) => goal.side === side).length)
+      return Array.from({ length: missing }, (_, index) => ({
+        id: `saved-${side}-unassigned-${index}`,
+        side,
+        scorerId: null,
+      }))
+    }
+    setGoalEntries([...restored, ...addUnassigned('A', suppliedDetail.score_a), ...addUnassigned('B', suppliedDetail.score_b)])
     setMvpId(suppliedDetail.mvp_user_id)
+    setMvpExpanded(false)
+    setExpandedGoalId(null)
     // Sync status changes must not erase a result currently being typed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [suppliedDetail?.match_id, visible])
@@ -79,18 +98,27 @@ export function MatchResultModal({
     [detail],
   )
 
-  const changeScore = (
-    setter: (value: string) => void,
-    value: string,
-  ) => {
-    if (/^\d{0,3}$/.test(value)) setter(value)
+  const stepScore = (side: 'A' | 'B', amount: number) => {
+    const value = side === 'A' ? scoreA : scoreB
+    const setter = side === 'A' ? setScoreA : setScoreB
+    const next = Math.max(0, Math.min(999, Number(value || 0) + amount))
+    setter(String(next))
+    if (!detail?.supports_scorers) return
+    if (amount > 0) {
+      const id = `goal-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      setGoalEntries((current) => [...current, { id, side, scorerId: null }])
+      setExpandedGoalId(id)
+    } else if (amount < 0) {
+      setGoalEntries((current) => {
+        const index = current.map((goal) => goal.side).lastIndexOf(side)
+        return index < 0 ? current : current.filter((_, goalIndex) => goalIndex !== index)
+      })
+    }
   }
 
-  const changeGoals = (userId: string, amount: number) => {
-    setGoals((current) => ({
-      ...current,
-      [userId]: Math.max(0, (current[userId] ?? 0) + amount),
-    }))
+  const selectScorer = (goalId: string, scorerId: string) => {
+    setGoalEntries((current) => current.map((goal) => goal.id === goalId ? { ...goal, scorerId } : goal))
+    setExpandedGoalId(null)
   }
 
   const save = async () => {
@@ -110,6 +138,10 @@ export function MatchResultModal({
       setError('Čas zadaj vo formáte HH:MM, napríklad 10:20.')
       return
     }
+    if (detail.supports_scorers && goalEntries.some((goal) => !goal.scorerId)) {
+      setError('Vyber strelca pri každom zaznamenanom góle.')
+      return
+    }
 
     setSaving(true)
     setError('')
@@ -121,12 +153,12 @@ export function MatchResultModal({
         scheduled_start: start || null,
         mvp_user_id: detail.supports_mvp ? mvpId : null,
         scorers: detail.supports_scorers
-          ? Object.entries(goals)
-              .filter(([, count]) => count > 0)
-              .map(([userId, count]) => ({
-                user_id: userId,
-                goals: count,
-              }))
+          ? Object.entries(
+              goalEntries.reduce<Record<string, number>>((totals, goal) => {
+                if (goal.scorerId) totals[goal.scorerId] = (totals[goal.scorerId] ?? 0) + 1
+                return totals
+              }, {}),
+            ).map(([userId, goals]) => ({ user_id: userId, goals }))
           : [],
       })
       onClose()
@@ -164,7 +196,9 @@ export function MatchResultModal({
               <ActivityIndicator color="#ffd400" size="large" />
             </View>
           ) : suppliedDetail && detail ? (
+            <>
             <ScrollView
+              style={styles.scrollArea}
               contentContainerStyle={styles.content}
               keyboardShouldPersistTaps="handled"
             >
@@ -182,26 +216,20 @@ export function MatchResultModal({
                 <View style={styles.scoreRow}>
                   <View style={styles.scoreSide}>
                     <Text style={styles.teamName}>{detail.participant_a.name}</Text>
-                    <AppTextInput
-                      value={scoreA}
-                      editable={editable}
-                      onChangeText={(value) => changeScore(setScoreA, value)}
-                      keyboardType="number-pad"
-                      placeholder="0"
-                      style={styles.scoreInput}
-                    />
+                    <Pressable disabled={!editable} onPress={() => stepScore('A', 1)} style={styles.scoreTap}>
+                      <Text style={styles.scoreValue}>{scoreA || '0'}</Text>
+                      <Text style={styles.scoreTapHint}>KLIKNUTÍM +1</Text>
+                    </Pressable>
+                    {editable ? <Pressable onPress={() => stepScore('A', -1)} style={styles.scoreMinus}><Text style={styles.scoreMinusText}>− odobrať</Text></Pressable> : null}
                   </View>
                   <Text style={styles.scoreDivider}>:</Text>
                   <View style={styles.scoreSide}>
                     <Text style={styles.teamName}>{detail.participant_b.name}</Text>
-                    <AppTextInput
-                      value={scoreB}
-                      editable={editable}
-                      onChangeText={(value) => changeScore(setScoreB, value)}
-                      keyboardType="number-pad"
-                      placeholder="0"
-                      style={styles.scoreInput}
-                    />
+                    <Pressable disabled={!editable} onPress={() => stepScore('B', 1)} style={styles.scoreTap}>
+                      <Text style={styles.scoreValue}>{scoreB || '0'}</Text>
+                      <Text style={styles.scoreTapHint}>KLIKNUTÍM +1</Text>
+                    </Pressable>
+                    {editable ? <Pressable onPress={() => stepScore('B', -1)} style={styles.scoreMinus}><Text style={styles.scoreMinusText}>− odobrať</Text></Pressable> : null}
                   </View>
                 </View>
               </View>
@@ -238,42 +266,52 @@ export function MatchResultModal({
                   <Text style={styles.sectionHint}>
                     Pri každom hráčovi nastav počet gólov. Súčet musí zodpovedať skóre tímu.
                   </Text>
-                  {(['A', 'B'] as const).map((side) => (
-                    <View key={side} style={styles.playerGroup}>
-                      <Text style={styles.sideLabel}>
-                        {side === 'A'
-                          ? detail.participant_a.name
-                          : detail.participant_b.name}
-                      </Text>
-                      {playersBySide[side].map((player) => (
-                        <View key={player.id} style={styles.playerRow}>
-                          <View style={styles.playerInfo}>
-                            <Text style={styles.playerName}>{player.name}</Text>
-                            <Text style={styles.playerId}>
-                              ID {player.id.slice(0, 8)}
-                            </Text>
-                          </View>
-                          <Pressable
-                            disabled={!editable}
-                            style={styles.stepButton}
-                            onPress={() => changeGoals(player.id, -1)}
-                          >
-                            <Text style={styles.stepText}>−</Text>
-                          </Pressable>
-                          <Text style={styles.goalCount}>
-                            {goals[player.id] ?? 0}
-                          </Text>
-                          <Pressable
-                            disabled={!editable}
-                            style={styles.stepButton}
-                            onPress={() => changeGoals(player.id, 1)}
-                          >
-                            <Text style={styles.stepText}>+</Text>
-                          </Pressable>
-                        </View>
-                      ))}
-                    </View>
-                  ))}
+                  {([true] as const).map(() => {
+                    const teamGoals = goalEntries
+                    const teamName = ''
+                    return (
+                      <View key="goal-timeline" style={styles.playerGroup}>
+                        {teamGoals.length === 0 ? <Text style={styles.scorerSummary}>Zatiaľ bez gólu.</Text> : null}
+                        {teamGoals.map((goal, index) => {
+                          const goalSide = goal.side
+                          const teamName = goalSide === 'A' ? detail.participant_a.name : detail.participant_b.name
+                          const open = expandedGoalId === goal.id
+                          const scorer = detail.players.find((player) => player.id === goal.scorerId)
+                          return (
+                            <View key={goal.id} style={[styles.goalEntry, goalSide === 'A' ? styles.goalEntryTeamA : styles.goalEntryTeamB]}>
+                              <Pressable disabled={!editable} onPress={() => setExpandedGoalId(open ? null : goal.id)} style={styles.goalEntryHeader}>
+                                <View style={[styles.goalNumber, goalSide === 'A' ? styles.goalNumberTeamA : styles.goalNumberTeamB]}>
+                                  <Text style={styles.goalNumberText}>{index + 1}</Text>
+                                </View>
+                                <View style={styles.goalEntryCopy}>
+                                  <View style={[styles.teamBadge, goalSide === 'A' ? styles.teamBadgeA : styles.teamBadgeB]}>
+                                    <Text numberOfLines={1} style={[styles.teamBadgeText, goalSide === 'A' ? styles.teamBadgeTextA : styles.teamBadgeTextB]}>{teamName}</Text>
+                                  </View>
+                                  <Text style={styles.goalEntryTitle}>Gól {teamName} · {index + 1}</Text>
+                                  <Text style={goal.scorerId ? styles.goalEntrySelected : styles.goalEntryPrompt}>
+                                    {scorer ? scorer.name : 'Vybrať strelca'}
+                                  </Text>
+                                </View>
+                                <Text style={styles.scorerChevron}>{open ? '⌃' : '⌄'}</Text>
+                              </Pressable>
+                              {open ? <View style={styles.rosterList}>
+                                <Text style={styles.rosterPrompt}>Kto strelil tento gól?</Text>
+                                <View style={styles.rosterGrid}>
+                                {playersBySide[goalSide].map((player) => {
+                                  const selected = player.id === goal.scorerId
+                                  return <Pressable key={player.id} disabled={!editable} onPress={() => selectScorer(goal.id, player.id)} style={[styles.rosterPlayer, selected && styles.rosterPlayerSelected]}>
+                                    <Text style={styles.playerName}>{player.name}</Text>
+                                    {selected ? <Text style={styles.rosterSelectedMark}>✓</Text> : null}
+                                  </Pressable>
+                                })}
+                                </View>
+                              </View> : null}
+                            </View>
+                          )
+                        })}
+                      </View>
+                    )
+                  })}
                 </View>
               ) : null}
 
@@ -283,7 +321,11 @@ export function MatchResultModal({
                   <Text style={styles.sectionHint}>
                     Vyber najlepšieho hráča zápasu. Pole je voliteľné.
                   </Text>
-                  {detail.players.map((player) => {
+                  <Pressable style={styles.mvpToggle} onPress={() => setMvpExpanded((current) => !current)}>
+                    <Text style={styles.mvpToggleText}>{mvpExpanded ? 'Skryť výber MVP' : mvpId ? 'Zmeniť MVP' : 'Vybrať MVP'}</Text>
+                    <Text style={styles.mvpToggleChevron}>{mvpExpanded ? '⌃' : '⌄'}</Text>
+                  </Pressable>
+                  {mvpExpanded ? detail.players.map((player) => {
                     const selected = mvpId === player.id
                     return (
                       <Pressable
@@ -305,8 +347,8 @@ export function MatchResultModal({
                         <Text style={styles.playerId}>TÍM {player.side}</Text>
                       </Pressable>
                     )
-                  })}
-                  {mvpId ? (
+                  }) : null}
+                  {mvpExpanded && mvpId ? (
                     <Pressable
                       disabled={!editable}
                       style={styles.clearMvp}
@@ -331,6 +373,7 @@ export function MatchResultModal({
                 </Pressable>
               ) : null}
             </ScrollView>
+            </>
           ) : (
             <View style={{ minHeight: 280, padding: 24 }}>
               <Text style={styles.error}>

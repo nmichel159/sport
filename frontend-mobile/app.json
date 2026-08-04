@@ -12,6 +12,12 @@
       "@react-native-community/datetimepicker",
       "expo-localization",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Povoliť kameru na načítanie QR vstupenky do turnaja."
+        }
+      ],
+      [
         "expo-navigation-bar",
         {
           "barStyle": "light",
@@ -45,7 +51,7 @@
       ],
       "softwareKeyboardLayoutMode": "resize",
       "backgroundColor": "#0b0c0e",
-      "edgeToEdgeEnabled": true,
+      "edgeToEdgeEnabled": true
     },
     "androidStatusBar": {
       "hidden": false,

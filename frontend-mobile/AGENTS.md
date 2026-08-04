@@ -50,6 +50,26 @@ For a new tournament format, add deterministic match IDs plus a new operation
 and transition to `tournamentEngine.ts`; extend backend snapshot validation and
 persistence in `backend/app/api/routes/tournament_sync.py`.
 
+## Large data-feed caching and versions
+
+For a screen that displays a larger, reusable payload (for example a list of
+tournaments, teams, registrations, results, or a dashboard feed), use a
+versioned offline cache instead of repeatedly downloading the complete data.
+
+1. Persist the last successful full payload together with its server version.
+2. When re-entering the relevant screen, request only a small version endpoint.
+3. If the version is unchanged, render the cached payload and do not request
+   the full endpoint. If it changed, download and persist the new full payload.
+4. If the network is unavailable, keep rendering the last cached payload.
+5. Do not use time-based polling for these feeds unless the product explicitly
+   requires live updates. Refresh is driven by entering the screen or an
+   explicit user action.
+
+Do not add this mechanism to tiny or transient responses such as a single
+number, a simple boolean, a one-off form action, or a small detail lookup. The
+extra version request is justified only when it avoids repeatedly transferring
+a materially larger payload.
+
 ## Android and Expo rules
 
 - `app.json` is the source for Expo/Android build settings; `app.config.ts`

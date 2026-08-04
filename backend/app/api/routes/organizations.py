@@ -1,10 +1,11 @@
 import re
+import hashlib
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -51,6 +52,8 @@ from app.schemas.organization import (
     OrganizationMemberAdd,
     OrganizationMemberRead,
     OrganizationRead,
+    ParticipatingEventsRead,
+    ParticipatingEventsVersionRead,
     TournamentFormatRead,
 )
 from app.services.brackets import (
@@ -793,6 +796,77 @@ def read_all_events(
         .order_by(OrganizationEvent.created_at.desc())
     ).all()
     return [event_read(event, db) for event in events]
+
+
+@router.get("/events/participating", response_model=ParticipatingEventsRead)
+def read_participating_events(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    """Return events joined by the user directly or through one of their teams."""
+    rows = db.execute(
+        select(OrganizationEvent, OrganizationEventRegistration)
+        .join(
+            OrganizationEventRegistration,
+            OrganizationEventRegistration.event_id == OrganizationEvent.id,
+        )
+        .outerjoin(Team, Team.id == OrganizationEventRegistration.team_id)
+        .join(Organization, Organization.id == OrganizationEvent.organization_id)
+        .where(
+            Organization.is_active.is_(True),
+            or_(
+                OrganizationEventRegistration.user_id == user.id,
+                Team.owner_user_id == user.id,
+            ),
+        )
+        .order_by(OrganizationEvent.event_date, OrganizationEvent.event_time)
+    ).all()
+    events = {event.id: event for event, _ in rows}
+    version_source = "|".join(
+        sorted(
+            f"{event.id}:{event.event_date}:{event.event_time}:{event.tournament_revision}:{registration.registered_at}"
+            for event, registration in rows
+        )
+    )
+    return ParticipatingEventsRead(
+        version=hashlib.sha256(version_source.encode()).hexdigest()[:16],
+        events=[event_read(event, db) for event in events.values()],
+    )
+
+
+@router.get(
+    "/events/participating/version",
+    response_model=ParticipatingEventsVersionRead,
+)
+def read_participating_events_version(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    rows = db.execute(
+        select(OrganizationEvent, OrganizationEventRegistration)
+        .join(
+            OrganizationEventRegistration,
+            OrganizationEventRegistration.event_id == OrganizationEvent.id,
+        )
+        .outerjoin(Team, Team.id == OrganizationEventRegistration.team_id)
+        .join(Organization, Organization.id == OrganizationEvent.organization_id)
+        .where(
+            Organization.is_active.is_(True),
+            or_(
+                OrganizationEventRegistration.user_id == user.id,
+                Team.owner_user_id == user.id,
+            ),
+        )
+    ).all()
+    version_source = "|".join(
+        sorted(
+            f"{event.id}:{event.event_date}:{event.event_time}:{event.tournament_revision}:{registration.registered_at}"
+            for event, registration in rows
+        )
+    )
+    return ParticipatingEventsVersionRead(
+        version=hashlib.sha256(version_source.encode()).hexdigest()[:16]
+    )
 
 
 @router.get("/event-formats", response_model=list[TournamentFormatRead])

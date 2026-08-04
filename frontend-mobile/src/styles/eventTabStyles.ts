@@ -1,6 +1,22 @@
 import { StyleSheet } from 'react-native'
 
 export const eventTabStyles = StyleSheet.create({
+  topActions: {
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  topActionTitle: { color: '#f3f4f6', fontSize: 24, fontWeight: '900' },
+  actionButtons: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  addButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 22,
+  },
+  addButtonText: { fontSize: 30, lineHeight: 34, fontWeight: '500' },
   tabs: {
     flexDirection: 'row',
     gap: 4,

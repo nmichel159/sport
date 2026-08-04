@@ -16,12 +16,14 @@ type Props = {
   organizations: ApiOrganization[]
   setOrganizations: React.Dispatch<React.SetStateAction<ApiOrganization[]>>
   fetcher: AuthenticatedFetch
+  createEventRequest?: number
 }
 
 export function OrganizationManagerScreen({
   organizations,
   setOrganizations,
   fetcher,
+  createEventRequest = 0,
 }: Props) {
   const accent = useAccentStyles()
   const [name, setName] = useState('')
@@ -85,6 +87,7 @@ export function OrganizationManagerScreen({
           )
         }
         message={message}
+        createEventRequest={createEventRequest}
       />
     )
   }

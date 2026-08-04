@@ -9,7 +9,6 @@ import type {
   AuthenticatedFetch,
   EventPayload,
   EventType,
-  ParticipationType,
 } from '../../../types/domain'
 import { toIsoDate } from '../../../utils/date'
 import { eventCreationFormSchema } from '../../../shared/validation/formSchemas'
@@ -17,6 +16,7 @@ import {
   NATIONWIDE_REGIONS,
   districtBelongsToRegion,
   emptyCategory,
+  participationTypeForSport,
   type EventCategoryDraft,
 } from '../eventFormOptions'
 
@@ -29,7 +29,7 @@ export function useEventCreationForm(
   const [coverImageUrl, setCoverImageUrl] = useState('')
   const [name, setName] = useState('')
   const [sport, setSport] = useState('')
-  const [mode, setMode] = useState<ParticipationType>('TEAM')
+  const mode = participationTypeForSport(sport)
   const [eventDate, setEventDate] = useState<Date | null>(null)
   const [eventTime, setEventTime] = useState('')
   const [showDatePicker, setShowDatePicker] = useState(false)
@@ -148,7 +148,6 @@ export function useEventCreationForm(
       setCoverImageUrl('')
       setName('')
       setSport('')
-      setMode('TEAM')
       setEventDate(null)
       setEventTime('')
       setRegionValue('')
@@ -177,7 +176,6 @@ export function useEventCreationForm(
     sport,
     setSport,
     mode,
-    setMode,
     eventDate,
     setEventDate,
     eventTime,
