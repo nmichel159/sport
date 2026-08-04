@@ -4,6 +4,7 @@ import type { AuthenticatedFetch } from '../../types/domain'
 export type User = {
   id: string
   display_name?: string
+  nickname?: string
   preferred_language: 'sk' | 'en'
   onboarding_completed: boolean
 }

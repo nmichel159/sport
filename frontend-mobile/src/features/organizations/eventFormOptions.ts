@@ -161,6 +161,12 @@ export function districtBelongsToRegion(
   return DISTRICTS_BY_REGION[region]?.has(district) ?? false
 }
 
+export function regionForDistrict(district: string) {
+  return Object.entries(DISTRICTS_BY_REGION).find(([, districts]) =>
+    districts.has(district),
+  )?.[0]
+}
+
 export type EventCategoryDraft = {
   age_group: '' | (typeof AGE_GROUPS)[number]['value']
   team_format: '' | (typeof TEAM_FORMATS)[number]['value']

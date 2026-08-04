@@ -8,13 +8,13 @@ import { useAccentStyles } from '../../../theme/useAccentStyles'
 import type { ApiEvent, ApiTeam, AuthenticatedFetch } from '../../../types/domain'
 import { MyTournamentScreen } from './MyTournamentScreen'
 import { SystemModal } from '../../../system/SystemModal'
+import { eventInviteUrl, shareEventInvite } from '../services/eventInvite'
 
 type Props = {
   event: ApiEvent
   teams: ApiTeam[]
   userId: string
   fetcher: AuthenticatedFetch
-  onBack: () => void
   onRegister: (event: ApiEvent, teamId?: string) => Promise<void>
   message: string
 }
@@ -24,14 +24,15 @@ export function EventDetailScreen({
   teams,
   userId,
   fetcher,
-  onBack,
   onRegister,
   message,
 }: Props) {
   const accent = useAccentStyles()
   const [choosing, setChoosing] = useState(false)
   const [showTournament, setShowTournament] = useState(false)
-  const [showQr, setShowQr] = useState(false)
+  const [showTicketQr, setShowTicketQr] = useState(false)
+  const [showInviteQr, setShowInviteQr] = useState(false)
+  const [inviteShareError, setInviteShareError] = useState('')
   const ownedTeamIds = new Set(teams.map((team) => team.id))
   const isRegistered = event.registrations.some(
     (registration) =>
@@ -47,6 +48,7 @@ export function EventDetailScreen({
     event: { id: event.id, name: event.name, sport: event.sport, date: event.event_date ?? null, location: event.location ?? null },
     participant: ownRegistration ? { id: ownRegistration.id, name: ownRegistration.name, type: ownRegistration.type } : null,
   })
+  const inviteQrValue = eventInviteUrl(event.invite_token)
 
   if (showTournament) {
     return (
@@ -62,10 +64,6 @@ export function EventDetailScreen({
 
   return (
     <>
-      <Pressable onPress={onBack}>
-        <Text style={[teamStyles.back, accent.accentText]}>← Späť na eventy</Text>
-      </Pressable>
-
       <View style={teamStyles.form}>
         <View style={teamStyles.eventTitleRow}>
         <Text style={teamStyles.sectionTitle}>
@@ -74,9 +72,14 @@ export function EventDetailScreen({
             ? 'TÍMOVÝ EVENT'
             : 'INDIVIDUÁLNY EVENT'}
         </Text>
-        {isRegistered ? <Pressable accessibilityLabel="Zobraziť QR vstupenku" onPress={() => setShowQr(true)} style={[teamStyles.qrButton, accent.outlineButton]}>
-          <Text style={[teamStyles.qrButtonText, accent.accentText]}>▦ QR</Text>
-        </Pressable> : null}
+        <View style={teamStyles.qrButtonRow}>
+          <Pressable accessibilityLabel="Zobraziť QR pozvánku na event" onPress={() => setShowInviteQr(true)} style={[teamStyles.qrButton, accent.outlineButton]}>
+            <Text style={[teamStyles.qrButtonText, accent.accentText]}>▦ Zdieľať</Text>
+          </Pressable>
+          {isRegistered ? <Pressable accessibilityLabel="Zobraziť QR vstupenku" onPress={() => setShowTicketQr(true)} style={[teamStyles.qrButton, accent.outlineButton]}>
+            <Text style={[teamStyles.qrButtonText, accent.accentText]}>Vstupenka</Text>
+          </Pressable> : null}
+        </View>
         </View>
         <Text style={mainStyles.homeGreeting}>{event.name}</Text>
         <Text style={teamStyles.muted}>
@@ -139,15 +142,27 @@ export function EventDetailScreen({
         {message ? <Text style={[teamStyles.buttonText, accent.accentText]}>{message}</Text> : null}
       </View>
 
-      <SystemModal visible={showQr} transparent animationType="fade" onRequestClose={() => setShowQr(false)}>
-        <Pressable style={teamStyles.qrOverlay} onPress={() => setShowQr(false)}>
+      <SystemModal visible={showInviteQr} transparent animationType="fade" onRequestClose={() => setShowInviteQr(false)}>
+        <Pressable style={teamStyles.qrOverlay} onPress={() => setShowInviteQr(false)}>
+          <Pressable style={teamStyles.qrSheet} onPress={(pressEvent) => pressEvent.stopPropagation()}>
+            <Text style={teamStyles.qrTitle}>QR pozvánka na event</Text>
+            <Text style={teamStyles.qrSubtitle}>{event.name}</Text>
+            {inviteQrValue ? <><View style={teamStyles.qrCodeWrap}><QRCode value={inviteQrValue} size={220} backgroundColor="#ffffff" color="#101114" /></View><Pressable onPress={() => void shareEventInvite(event).catch(() => setInviteShareError('Zdieľanie sa nepodarilo otvoriť. Skús to prosím ešte raz.'))} style={[teamStyles.primary, accent.primaryButton]}><Text style={[teamStyles.primaryText, accent.primaryText]}>Zdieľať cez aplikácie</Text></Pressable><Text selectable style={teamStyles.qrLink}>{inviteQrValue}</Text></> : <Text style={teamStyles.qrError}>Pozvánka ešte nemá platný token. Pripoj sa k aktuálnemu serveru a obnov event.</Text>}
+            {inviteShareError ? <Text style={teamStyles.qrError}>{inviteShareError}</Text> : null}
+            <Text style={teamStyles.muted}>Po načítaní sa otvorí detail eventu, kde sa môže používateľ prihlásiť.</Text>
+            <Pressable onPress={() => setShowInviteQr(false)} style={[teamStyles.primary, accent.primaryButton]}><Text style={[teamStyles.primaryText, accent.primaryText]}>Zavrieť</Text></Pressable>
+          </Pressable>
+        </Pressable>
+      </SystemModal>
+      <SystemModal visible={showTicketQr} transparent animationType="fade" onRequestClose={() => setShowTicketQr(false)}>
+        <Pressable style={teamStyles.qrOverlay} onPress={() => setShowTicketQr(false)}>
           <Pressable style={teamStyles.qrSheet} onPress={(pressEvent) => pressEvent.stopPropagation()}>
             <Text style={teamStyles.qrTitle}>QR vstupenka</Text>
             <Text style={teamStyles.qrSubtitle}>{event.name}</Text>
             <View style={teamStyles.qrCodeWrap}><QRCode value={qrValue} size={220} backgroundColor="#ffffff" color="#101114" /></View>
             <Text style={teamStyles.qrParticipant}>{ownRegistration?.name}</Text>
             <Text style={teamStyles.muted}>Kód funguje offline a obsahuje údaje o turnaji aj účastníkovi.</Text>
-            <Pressable onPress={() => setShowQr(false)} style={[teamStyles.primary, accent.primaryButton]}><Text style={[teamStyles.primaryText, accent.primaryText]}>Zavrieť</Text></Pressable>
+            <Pressable onPress={() => setShowTicketQr(false)} style={[teamStyles.primary, accent.primaryButton]}><Text style={[teamStyles.primaryText, accent.primaryText]}>Zavrieť</Text></Pressable>
           </Pressable>
         </Pressable>
       </SystemModal>

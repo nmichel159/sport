@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { teamStyles } from '../../../styles/teamStyles'
-import { useAccentStyles } from '../../../theme/useAccentStyles'
+import { EventDetailWindow } from '../../../components/EventDetailWindow'
 import type {
   ApiEvent,
   ApiOrganization,
@@ -29,25 +29,12 @@ export function OrganizationEventManagerScreen({
   message,
   createEventRequest = 0,
 }: Props) {
-  const accent = useAccentStyles()
   const [openedEvent, setOpenedEvent] = useState<ApiEvent | null>(null)
   const [creatingEvent, setCreatingEvent] = useState(false)
 
   useEffect(() => {
     if (createEventRequest > 0) setCreatingEvent(true)
   }, [createEventRequest])
-
-  if (openedEvent) {
-    return (
-      <OrganizationEventDetailScreen
-        event={openedEvent}
-        organizationId={organization.id}
-        fetcher={fetcher}
-        onBack={() => setOpenedEvent(null)}
-        onSave={onUpdate}
-      />
-    )
-  }
 
   return (
     <>
@@ -68,6 +55,20 @@ export function OrganizationEventManagerScreen({
         fetcher={fetcher}
         message={message}
       />
+      <EventDetailWindow
+        visible={Boolean(openedEvent)}
+        title="Správa eventu"
+        onClose={() => setOpenedEvent(null)}
+      >
+        {openedEvent ? (
+          <OrganizationEventDetailScreen
+            event={openedEvent}
+            organizationId={organization.id}
+            fetcher={fetcher}
+            onSave={onUpdate}
+          />
+        ) : null}
+      </EventDetailWindow>
     </>
   )
 }

@@ -8,6 +8,7 @@ import { teamStyles } from '../../../styles/teamStyles'
 import { SystemModal } from '../../../system/SystemModal'
 import { useAccentStyles } from '../../../theme/useAccentStyles'
 import type { AuthenticatedFetch, EventPayload } from '../../../types/domain'
+import { EventVoiceAssistant } from '../../localAi/components/EventVoiceAssistant'
 import {
   AGE_GROUPS,
   EVENT_TYPES,
@@ -171,6 +172,12 @@ export function CreateEventForm({
         <Text style={[teamStyles.title, inModal && formStyles.modalEventTitle]}>
           Vytvoriť event
         </Text>
+
+        <EventVoiceAssistant
+          snapshot={form.assistantSnapshot}
+          onApply={form.applyAssistantPatch}
+          avoidCloseButton={inModal}
+        />
 
         <View style={formStyles.eventFormSection}>
           <Text style={formStyles.eventSectionLabel}>ZÁKLADNÉ ÚDAJE</Text>

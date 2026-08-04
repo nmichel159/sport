@@ -134,6 +134,7 @@ def event_read(event: OrganizationEvent, db: Session) -> EventRead:
     ).all()
     return EventRead(
         id=event.id,
+        invite_token=event.invite_token,
         name=event.name,
         event_type=event.event_type,
         sport=event.sport,
@@ -686,7 +687,9 @@ def apply_match_result_details(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"code": "MVP_NOT_SUPPORTED"},
         )
-    if event.sport in GOAL_SPORTS:
+    # Goal scorers are optional. When none are supplied, save the final score
+    # without attempting to reconcile scorer totals.
+    if event.sport in GOAL_SPORTS and payload.scorers:
         goal_totals = {"A": 0, "B": 0}
         for scorer in payload.scorers:
             goal_totals[player_by_id[scorer.user_id].side] += scorer.goals
@@ -891,6 +894,27 @@ def read_event(
     if not event:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, detail={"code": "EVENT_NOT_FOUND"}
+        )
+    return event_read(event, db)
+
+
+@router.get("/events/invites/{invite_token}", response_model=EventRead)
+def read_event_by_invite_token(
+    invite_token: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_active_user),
+):
+    event = db.scalar(
+        select(OrganizationEvent)
+        .join(Organization, Organization.id == OrganizationEvent.organization_id)
+        .where(
+            OrganizationEvent.invite_token == invite_token,
+            Organization.is_active.is_(True),
+        )
+    )
+    if not event:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail={"code": "INVITE_NOT_FOUND"}
         )
     return event_read(event, db)
 

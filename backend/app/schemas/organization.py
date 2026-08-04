@@ -71,6 +71,7 @@ class EventCreate(StrictInput):
 
 class EventRead(BaseModel):
     id: UUID
+    invite_token: str
     name: str
     event_type: str
     sport: str

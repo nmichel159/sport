@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import { BottomNavigation } from '../../../components/BottomNavigation'
 import { KeyboardAwareScrollView } from '../../../components/KeyboardAwareScrollView'
 import { EventsHubScreen } from '../../events/screens/EventsHubScreen'
 import { HomeTab } from '../../home/components/HomeTab'
+import { QrScannerModal } from '../../home/components/QrScannerModal'
 import { RankingScreen } from '../../rankings/screens/RankingScreen'
 import { TeamDetailScreen } from '../../teams/screens/TeamDetailScreen'
 import { TeamsProfileScreen } from '../../teams/screens/TeamsProfileScreen'
@@ -41,6 +42,8 @@ export function DashboardScreen({ name, userId, onSignOut }: Props) {
   const [events, setEvents] = useState<ApiEvent[]>([])
   const [participatingEvents, setParticipatingEvents] = useState<ApiEvent[]>([])
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
+  const [selectedEvent, setSelectedEvent] = useState<ApiEvent | null>(null)
+  const [qrScannerVisible, setQrScannerVisible] = useState(false)
   const [error, setError] = useState('')
   const hasOpenedHome = useRef(false)
 
@@ -82,11 +85,9 @@ export function DashboardScreen({ name, userId, onSignOut }: Props) {
   }
 
   const selectedTeam = teams.find((team) => team.id === selectedTeamId)
-  const title = selectedTeam?.name ?? tabTitles[tab]
-
   return (
     <View style={mainStyles.mainApp}>
-      <AppHeader title={title} />
+      <AppHeader name={name} />
       <KeyboardAwareScrollView
         contentContainerStyle={mainStyles.mainContent}
         automaticallyAdjustKeyboardInsets
@@ -119,6 +120,10 @@ export function DashboardScreen({ name, userId, onSignOut }: Props) {
             onEnterHome={refreshHomeParticipations}
             onCreateTeam={create}
             onOpenTeam={setSelectedTeamId}
+            onOpenEvent={(event) => {
+              setSelectedEvent(event)
+              setTab('events')
+            }}
           />
         ) : tab === 'events' ? (
           <EventsHubScreen
@@ -129,11 +134,34 @@ export function DashboardScreen({ name, userId, onSignOut }: Props) {
             teams={teams}
             userId={userId}
             fetcher={authenticatedFetch}
+            activeEvent={selectedEvent}
+            onActiveEventChange={setSelectedEvent}
           />
         ) : (
           <RankingScreen fetcher={authenticatedFetch} />
         )}
       </KeyboardAwareScrollView>
+
+      {tab === 'home' && !selectedTeam ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Čítačka QR vstupeniek"
+          onPress={() => setQrScannerVisible(true)}
+          style={mainStyles.qrScannerFab}
+        >
+          <Text style={mainStyles.qrScannerFabIcon}>▦</Text>
+          <Text style={mainStyles.qrScannerFabText}>Čítačka QR</Text>
+        </Pressable>
+      ) : null}
+      <QrScannerModal
+        visible={qrScannerVisible}
+        onClose={() => setQrScannerVisible(false)}
+        fetcher={authenticatedFetch}
+        onOpenEvent={(event) => {
+          setSelectedEvent(event)
+          setTab('events')
+        }}
+      />
 
       {!selectedTeam ? (
         <BottomNavigation

@@ -14,6 +14,7 @@ import { useTheme } from '../../../theme/ThemeContext'
 import { DiscoveryFilters, type DiscoveryFilterValue } from '../components/DiscoveryFilters'
 import { loadSports } from '../../../services/catalogs'
 import { SLOVAK_REGIONS } from '../../organizations/eventFormOptions'
+import { EventDetailWindow } from '../../../components/EventDetailWindow'
 
 type EventSection = 'mine' | 'discover' | 'organization'
 
@@ -23,6 +24,25 @@ const tabs: ReadonlyArray<{ key: EventSection; label: string }> = [
   { key: 'organization', label: 'Organizácia' },
 ]
 
+const ALL_SLOVAKIA_REGION = 'Celé Slovensko'
+
+function normalizedRegion(value: string | null | undefined) {
+  return (value ?? '').trim().normalize('NFC').toLocaleLowerCase('sk-SK')
+}
+
+export function matchesDiscoveryRegions(
+  event: ApiEvent,
+  selectedRegions: string[],
+) {
+  if (!selectedRegions.length) return true
+  if (selectedRegions.some((region) => normalizedRegion(region) === normalizedRegion(ALL_SLOVAKIA_REGION))) {
+    return true
+  }
+  const eventRegion = normalizedRegion(event.region)
+  if (eventRegion === normalizedRegion(ALL_SLOVAKIA_REGION)) return true
+  return selectedRegions.some((region) => normalizedRegion(region) === eventRegion)
+}
+
 type Props = {
   organizations: ApiOrganization[]
   setOrganizations: React.Dispatch<React.SetStateAction<ApiOrganization[]>>
@@ -31,6 +51,8 @@ type Props = {
   teams: ApiTeam[]
   userId: string
   fetcher: AuthenticatedFetch
+  activeEvent?: ApiEvent | null
+  onActiveEventChange?: (event: ApiEvent | null) => void
 }
 
 export function EventsHubScreen({
@@ -41,10 +63,17 @@ export function EventsHubScreen({
   teams,
   userId,
   fetcher,
+  activeEvent,
+  onActiveEventChange,
 }: Props) {
   const { theme } = useTheme()
   const [section, setSection] = useState<EventSection>('discover')
-  const [active, setActive] = useState<ApiEvent | null>(null)
+  const [localActive, setLocalActive] = useState<ApiEvent | null>(null)
+  const active = activeEvent === undefined ? localActive : activeEvent
+  const setActive = (event: ApiEvent | null) => {
+    if (onActiveEventChange) onActiveEventChange(event)
+    else setLocalActive(event)
+  }
   const [message, setMessage] = useState('')
   const [createEventRequest, setCreateEventRequest] = useState(0)
   const [discoveryFilters, setDiscoveryFilters] = useState<DiscoveryFilterValue>({ sports: [], regions: [] })
@@ -98,25 +127,8 @@ export function EventsHubScreen({
   const availableRegions = Array.from(SLOVAK_REGIONS)
   const discoveredEvents = events.filter((event) =>
     (!discoveryFilters.sports.length || discoveryFilters.sports.includes(event.sport)) &&
-    (!discoveryFilters.regions.length || discoveryFilters.regions.includes(event.region ?? '')),
+    matchesDiscoveryRegions(event, discoveryFilters.regions),
   )
-
-  if (active) {
-    return (
-      <EventDetailScreen
-        event={active}
-        teams={teams.filter((team) => team.owner_user_id === userId)}
-        userId={userId}
-        fetcher={fetcher}
-        onBack={() => {
-          setActive(null)
-          setMessage('')
-        }}
-        onRegister={register}
-        message={message}
-      />
-    )
-  }
 
   return (
     <>
@@ -186,6 +198,24 @@ export function EventsHubScreen({
           }
         />
       )}
+      <EventDetailWindow
+        visible={Boolean(active)}
+        onClose={() => {
+          setActive(null)
+          setMessage('')
+        }}
+      >
+        {active ? (
+          <EventDetailScreen
+            event={active}
+            teams={teams.filter((team) => team.owner_user_id === userId)}
+            userId={userId}
+            fetcher={fetcher}
+            onRegister={register}
+            message={message}
+          />
+        ) : null}
+      </EventDetailWindow>
     </>
   )
 }

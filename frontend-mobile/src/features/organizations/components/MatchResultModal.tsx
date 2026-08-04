@@ -50,6 +50,7 @@ export function MatchResultModal({
   const [pitch, setPitch] = useState('')
   const [start, setStart] = useState('')
   const [goalEntries, setGoalEntries] = useState<GoalEntry[]>([])
+  const [recordScorers, setRecordScorers] = useState(false)
   const [expandedGoalId, setExpandedGoalId] = useState<string | null>(null)
   const [mvpId, setMvpId] = useState<string | null>(null)
   const [mvpExpanded, setMvpExpanded] = useState(false)
@@ -62,8 +63,8 @@ export function MatchResultModal({
     setLoading(false)
     setError('')
     setDetail(suppliedDetail)
-    setScoreA(suppliedDetail.score_a?.toString() ?? '')
-    setScoreB(suppliedDetail.score_b?.toString() ?? '')
+    setScoreA(suppliedDetail.score_a?.toString() ?? '0')
+    setScoreB(suppliedDetail.score_b?.toString() ?? '0')
     setPitch(suppliedDetail.pitch ?? '')
     setStart(suppliedDetail.scheduled_start?.slice(0, 5) ?? '')
     const playerSide = new Map(suppliedDetail.players.map((player) => [player.id, player.side]))
@@ -83,6 +84,7 @@ export function MatchResultModal({
       }))
     }
     setGoalEntries([...restored, ...addUnassigned('A', suppliedDetail.score_a), ...addUnassigned('B', suppliedDetail.score_b)])
+    setRecordScorers(suppliedDetail.scorers.length > 0)
     setMvpId(suppliedDetail.mvp_user_id)
     setMvpExpanded(false)
     setExpandedGoalId(null)
@@ -103,7 +105,7 @@ export function MatchResultModal({
     const setter = side === 'A' ? setScoreA : setScoreB
     const next = Math.max(0, Math.min(999, Number(value || 0) + amount))
     setter(String(next))
-    if (!detail?.supports_scorers) return
+    if (!detail?.supports_scorers || !recordScorers) return
     if (amount > 0) {
       const id = `goal-${Date.now()}-${Math.random().toString(36).slice(2)}`
       setGoalEntries((current) => [...current, { id, side, scorerId: null }])
@@ -126,10 +128,10 @@ export function MatchResultModal({
     const parsedA = Number(scoreA)
     const parsedB = Number(scoreB)
     if (
-      scoreA === '' ||
-      scoreB === '' ||
       !Number.isInteger(parsedA) ||
-      !Number.isInteger(parsedB)
+      !Number.isInteger(parsedB) ||
+      parsedA < 0 ||
+      parsedB < 0
     ) {
       setError('Vyplň konečné skóre oboch strán.')
       return
@@ -138,7 +140,7 @@ export function MatchResultModal({
       setError('Čas zadaj vo formáte HH:MM, napríklad 10:20.')
       return
     }
-    if (detail.supports_scorers && goalEntries.some((goal) => !goal.scorerId)) {
+    if (recordScorers && goalEntries.some((goal) => !goal.scorerId)) {
       setError('Vyber strelca pri každom zaznamenanom góle.')
       return
     }
@@ -152,7 +154,7 @@ export function MatchResultModal({
         pitch: pitch.trim() || null,
         scheduled_start: start || null,
         mvp_user_id: detail.supports_mvp ? mvpId : null,
-        scorers: detail.supports_scorers
+        scorers: recordScorers
           ? Object.entries(
               goalEntries.reduce<Record<string, number>>((totals, goal) => {
                 if (goal.scorerId) totals[goal.scorerId] = (totals[goal.scorerId] ?? 0) + 1
@@ -175,13 +177,16 @@ export function MatchResultModal({
       visible={visible}
       transparent
       animationType="slide"
+      keyboardAware={false}
       onRequestClose={onClose}
     >
-      <Pressable style={styles.overlay} onPress={onClose}>
+      <View style={styles.overlay}>
         <Pressable
-          style={styles.sheet}
-          onPress={(event) => event.stopPropagation()}
-        >
+          accessibilityLabel="Zavrieť detail zápasu"
+          style={styles.backdrop}
+          onPress={onClose}
+        />
+        <View style={styles.sheet}>
           <View style={styles.handle} />
           <Pressable
             accessibilityLabel="Zavrieť detail zápasu"
@@ -261,6 +266,47 @@ export function MatchResultModal({
               </View>
 
               {detail.supports_scorers ? (
+                <View style={styles.section}>
+                  <Pressable
+                    disabled={!editable}
+                    style={styles.scorerToggle}
+                    onPress={() => {
+                      setRecordScorers((current) => {
+                        const next = !current
+                        if (next) {
+                          setGoalEntries((entries) => {
+                            const addMissing = (side: 'A' | 'B', score: string) =>
+                              Array.from(
+                                {
+                                  length: Math.max(
+                                    0,
+                                    Number(score || 0) - entries.filter((goal) => goal.side === side).length,
+                                  ),
+                                },
+                                (_, index) => ({
+                                  id: `goal-${side}-${Date.now()}-${index}`,
+                                  side,
+                                  scorerId: null,
+                                }),
+                              )
+                            return [...entries, ...addMissing('A', scoreA), ...addMissing('B', scoreB)]
+                          })
+                        }
+                        return next
+                      })
+                      setExpandedGoalId(null)
+                    }}
+                  >
+                    <View style={styles.scorerToggleCopy}>
+                      <Text style={styles.scorerToggleTitle}>Zapisovať strelcov</Text>
+                      <Text style={styles.scorerToggleHint}>Voliteľné – výsledok môžeš uložiť aj bez mien strelcov.</Text>
+                    </View>
+                    <Text style={styles.scorerToggleValue}>{recordScorers ? 'ÁNO' : 'NIE'}</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+
+              {detail.supports_scorers && recordScorers ? (
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Strelci gólov</Text>
                   <Text style={styles.sectionHint}>
@@ -381,8 +427,8 @@ export function MatchResultModal({
               </Text>
             </View>
           )}
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </SystemModal>
   )
 }

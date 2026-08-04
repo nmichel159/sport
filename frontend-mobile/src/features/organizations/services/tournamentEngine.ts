@@ -440,7 +440,9 @@ function saveResult(
   const players = new Map(detail.players.map((player) => [player.id, player]))
   if (payload.mvp_user_id && !players.has(payload.mvp_user_id))
     throw Error('MVP_NOT_IN_MATCH')
-  if (detail.supports_scorers) {
+  // Scorers are optional: validate their totals only when the organizer chose
+  // to record them. An empty list is a valid score-only result.
+  if (detail.supports_scorers && payload.scorers.length > 0) {
     const totals = { A: 0, B: 0 }
     for (const scorer of payload.scorers) {
       const player = players.get(scorer.user_id)

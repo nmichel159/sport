@@ -6,7 +6,11 @@ export const matchResultStyles = StyleSheet.create({
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0,0,0,0.72)',
   },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
   sheet: {
+    height: '94%',
     maxHeight: '94%',
     backgroundColor: '#111216',
     borderTopColor: '#3a3d44',
@@ -14,6 +18,7 @@ export const matchResultStyles = StyleSheet.create({
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
     paddingTop: 9,
+    zIndex: 1,
   },
   handle: {
     alignSelf: 'center',
@@ -132,6 +137,10 @@ export const matchResultStyles = StyleSheet.create({
     borderWidth: 1,
     backgroundColor: '#1b1d22',
   },
+  scorerToggleCopy: { flex: 1, gap: 3, paddingRight: 12 },
+  scorerToggleTitle: { color: '#f1f2f4', fontSize: 13, fontWeight: '900' },
+  scorerToggleHint: { color: '#858a93', fontSize: 10, lineHeight: 14 },
+  scorerToggleValue: { color: '#ffd400', fontSize: 11, fontWeight: '900' },
   scorerSummary: { color: '#858a93', fontSize: 10, marginTop: 3 },
   goalEntryTeamA: { borderLeftColor: '#69c8ee', borderLeftWidth: 3 },
   goalEntryTeamB: { borderLeftColor: '#c69bed', borderLeftWidth: 3 },

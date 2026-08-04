@@ -12,11 +12,16 @@ import type {
 } from '../../../types/domain'
 import { toIsoDate } from '../../../utils/date'
 import { eventCreationFormSchema } from '../../../shared/validation/formSchemas'
+import type {
+  EventFormAssistantApplyResult,
+  EventFormAssistantPatch,
+} from '../../localAi/types'
 import {
   NATIONWIDE_REGIONS,
   districtBelongsToRegion,
   emptyCategory,
   participationTypeForSport,
+  regionForDistrict,
   type EventCategoryDraft,
 } from '../eventFormOptions'
 
@@ -101,6 +106,110 @@ export function useEventCreationForm(
     setCategories((current) =>
       current.filter((_, categoryIndex) => categoryIndex !== index),
     )
+  }
+
+  const applyAssistantPatch = async (
+    patch: EventFormAssistantPatch,
+  ): Promise<EventFormAssistantApplyResult> => {
+    const appliedFields: string[] = []
+    const warnings: string[] = []
+
+    if (patch.eventType) {
+      setEventType(patch.eventType)
+      appliedFields.push('typ')
+    }
+    if (patch.name !== undefined) {
+      setName(patch.name)
+      appliedFields.push('názov')
+    }
+    if (patch.sport && sports.some((item) => item.name === patch.sport)) {
+      setSport(patch.sport)
+      appliedFields.push('šport')
+    }
+    if (patch.eventDate) {
+      const [year, month, day] = patch.eventDate.split('-').map(Number)
+      const parsedDate = new Date(year, month - 1, day, 12)
+      if (
+        parsedDate.getFullYear() === year &&
+        parsedDate.getMonth() === month - 1 &&
+        parsedDate.getDate() === day
+      ) {
+        setEventDate(parsedDate)
+        appliedFields.push('dátum')
+      }
+    }
+    if (patch.eventTime !== undefined) {
+      setEventTime(patch.eventTime)
+      appliedFields.push('čas')
+    }
+
+    const targetRegion = patch.region ?? region
+    if (patch.region) {
+      setRegionValue(patch.region)
+      setCity(null)
+      setCityQuery('')
+      setCities([])
+      appliedFields.push('kraj')
+    }
+    if (patch.city) {
+      if (NATIONWIDE_REGIONS.has(targetRegion)) {
+        warnings.push('Pri celoslovenskom evente sa mesto nepoužíva.')
+      } else {
+        try {
+          const matches = await searchDistrictCities(patch.city)
+          const normalizedCity = patch.city.trim().toLocaleLowerCase('sk-SK')
+          const exactMatch = matches.find((item) =>
+            item.name.toLocaleLowerCase('sk-SK') === normalizedCity
+          )
+          const resolved = matches.find((item) =>
+            item.name.toLocaleLowerCase('sk-SK') === normalizedCity &&
+            districtBelongsToRegion(item.district, targetRegion),
+          ) ?? matches.find((item) =>
+            districtBelongsToRegion(item.district, targetRegion),
+          ) ?? (!targetRegion ? exactMatch : undefined)
+          if (resolved) {
+            if (!targetRegion) {
+              const inferredRegion = regionForDistrict(resolved.district)
+              if (inferredRegion) {
+                setRegionValue(inferredRegion)
+                appliedFields.push('kraj')
+              }
+            }
+            setCity(resolved)
+            setCityQuery('')
+            setCities([])
+            appliedFields.push('mesto')
+          } else {
+            setCity(null)
+            setCityQuery(patch.city)
+            warnings.push('Mesto sa nepodarilo jednoznačne vybrať; skontroluj ho.')
+          }
+        } catch {
+          setCity(null)
+          setCityQuery(patch.city)
+          warnings.push('Mesto potrebuje potvrdenie po obnovení pripojenia.')
+        }
+      }
+    }
+    if (patch.venue !== undefined) {
+      setVenue(patch.venue)
+      appliedFields.push('miesto konania')
+    }
+    if (patch.coverImageUrl !== undefined) {
+      setCoverImageUrl(patch.coverImageUrl)
+      appliedFields.push('titulovka')
+    }
+    if (patch.description !== undefined) {
+      setDescription(patch.description)
+      appliedFields.push('popis')
+    }
+    if (patch.categories) {
+      setCategories(patch.categories)
+      appliedFields.push('kategórie')
+    }
+
+    setError('')
+    return { appliedFields, warnings }
   }
 
   const submit = async () => {
@@ -197,6 +306,21 @@ export function useEventCreationForm(
     removeCategory,
     description,
     setDescription,
+    assistantSnapshot: {
+      eventType,
+      name,
+      sport,
+      eventDate: eventDate ? toIsoDate(eventDate) : null,
+      eventTime,
+      region,
+      city: city?.name ?? '',
+      venue,
+      coverImageUrl,
+      description,
+      categories,
+      allowedSports: sports.map((item) => item.name),
+    },
+    applyAssistantPatch,
     busy,
     error,
     submit,

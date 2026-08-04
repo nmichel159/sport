@@ -1,11 +1,11 @@
 import { StyleSheet } from 'react-native'
 
 export const homeTournamentStyles = StyleSheet.create({
-  section: { gap: 9, marginTop: 10 },
+  section: { gap: 9, marginTop: 10, padding: 14, borderRadius: 20, borderWidth: 1, borderColor: '#2b2e34', backgroundColor: '#17181c' },
   heading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { color: '#9aa0a8', fontSize: 12, fontWeight: '800', letterSpacing: 0.8 },
   count: { fontSize: 13, fontWeight: '900' },
-  card: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 16, borderWidth: 1, borderColor: '#2b2e34', backgroundColor: '#17181c' },
+  card: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 16, borderWidth: 1, borderColor: '#30333a', backgroundColor: '#111216' },
   dateBadge: { width: 42, alignItems: 'center', justifyContent: 'center', paddingVertical: 5, borderRadius: 11 },
   dateBadgeText: { fontSize: 17, fontWeight: '900', lineHeight: 20 },
   month: { color: '#9aa0a8', fontSize: 9, fontWeight: '800' },
@@ -16,4 +16,15 @@ export const homeTournamentStyles = StyleSheet.create({
   statusText: { fontSize: 9, fontWeight: '900' },
   empty: { padding: 14, borderRadius: 15, borderWidth: 1, borderColor: '#2b2e34', borderStyle: 'dashed' },
   emptyText: { color: '#858a93', fontSize: 11, textAlign: 'center' },
+  xpCard: { marginTop: 10, gap: 15, padding: 17, borderRadius: 22, borderWidth: 1 },
+  xpTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 14 },
+  xpEyebrow: { fontSize: 11, fontWeight: '900', letterSpacing: 1 },
+  xpTitle: { marginTop: 3, color: '#f3f4f6', fontSize: 18, fontWeight: '900' },
+  xpBadge: { width: 58, height: 58, alignItems: 'center', justifyContent: 'center', borderRadius: 18 },
+  xpBadgeValue: { color: '#171400', fontSize: 21, fontWeight: '900', lineHeight: 23 },
+  xpBadgeLabel: { color: '#171400', fontSize: 9, fontWeight: '900', letterSpacing: 0.7 },
+  xpProgressTrack: { height: 10, overflow: 'hidden', borderRadius: 99, backgroundColor: 'rgba(255,255,255,0.16)' },
+  xpProgressFill: { height: '100%', minWidth: 0, borderRadius: 99 },
+  xpFooter: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  xpFooterText: { flex: 1, color: '#c7c9cf', fontSize: 11, fontWeight: '700' },
 })

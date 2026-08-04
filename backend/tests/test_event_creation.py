@@ -14,6 +14,7 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key-at-least-32-bytes-long")
 
 from app.api.routes.organizations import (
     create_event,
+    read_event_by_invite_token,
     read_participating_events,
     read_participating_events_version,
 )
@@ -139,6 +140,35 @@ def test_create_event_persists_form_and_categories_atomically(event_db):
     )
     assert len(result.events[0].categories) == 2
     assert result.events[0].categories[0].age_group == "open"
+    assert len(result.events[0].invite_token) == 64
+    assert result.events[0].invite_token == stored.invite_token
+
+
+def test_event_invite_token_opens_the_current_event(event_db):
+    manager = User(
+        id=uuid.uuid4(),
+        email="invite-manager@example.com",
+        nickname="invite-manager",
+    )
+    organization = Organization(
+        id=uuid.uuid4(),
+        owner_user_id=manager.id,
+        name="Invite organization",
+        slug="invite-organization",
+    )
+    event = OrganizationEvent(
+        organization_id=organization.id,
+        created_by_user_id=manager.id,
+        name="Private cup",
+        sport="Futbal",
+    )
+    event_db.add_all([manager, organization, event])
+    event_db.commit()
+
+    result = read_event_by_invite_token(event.invite_token, event_db, manager)
+
+    assert result.id == event.id
+    assert result.invite_token == event.invite_token
 
 
 def test_tournament_requires_time():

@@ -9,6 +9,11 @@ import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView'
 type SystemModalProps = ModalProps & {
   /** Lets camera and media views paint behind Android's system bars. */
   edgeToEdge?: boolean
+  /**
+   * Use this when modal content already owns its scrolling. It prevents nested
+   * scroll containers from leaving a bottom sheet without a bounded height.
+   */
+  keyboardAware?: boolean
 }
 
 /**
@@ -21,8 +26,19 @@ export function SystemModal({
   navigationBarTranslucent = Platform.OS === 'android',
   statusBarTranslucent = Platform.OS === 'android',
   edgeToEdge = false,
+  keyboardAware = true,
   ...props
 }: SystemModalProps) {
+  const safeContent = keyboardAware ? (
+    <KeyboardAwareScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{ flexGrow: 1 }}
+      keyboardDismissMode="on-drag"
+    >
+      {children}
+    </KeyboardAwareScrollView>
+  ) : children
+
   return (
     <Modal
       {...props}
@@ -34,13 +50,7 @@ export function SystemModal({
         edges={['top', 'right', 'bottom', 'left']}
         style={{ flex: 1 }}
       >
-        <KeyboardAwareScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ flexGrow: 1 }}
-          keyboardDismissMode="on-drag"
-        >
-          {children}
-        </KeyboardAwareScrollView>
+        {safeContent}
       </SafeAreaView>}
     </Modal>
   )

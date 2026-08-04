@@ -22,7 +22,7 @@ export default function MobileApp() {
   if (user?.onboarding_completed) {
     return (
       <DashboardScreen
-        name={user.display_name ?? 'Hrac'}
+        name={user.nickname ?? user.display_name ?? 'Hráč'}
         userId={user.id}
         onSignOut={signOut}
       />

@@ -3,6 +3,7 @@
     "name": "Sport",
     "slug": "sport",
     "version": "0.1.0",
+    "newArchEnabled": true,
     "orientation": "default",
     "scheme": "com.nmichel.sport",
     "userInterfaceStyle": "dark",
@@ -11,6 +12,28 @@
       "expo-router",
       "@react-native-community/datetimepicker",
       "expo-localization",
+      "expo-build-properties",
+      [
+        "llama.rn",
+        {
+          "enableEntitlements": true,
+          "entitlementsProfile": "production",
+          "forceCxx20": true,
+          "enableOpenCLAndHexagon": true
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Povoliť mikrofón na hlasové vypĺňanie formulára eventu.",
+          "speechRecognitionPermission": "Povoliť rozpoznávanie reči na hlasové vypĺňanie formulára eventu.",
+          "androidSpeechServicePackages": [
+            "com.google.android.as",
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.tts"
+          ]
+        }
+      ],
       [
         "expo-camera",
         {

@@ -145,6 +145,7 @@ def seed_noro_groups_tournament(
             participation_type="INDIVIDUAL",
             format_id=tournament_format.id,
             event_date=date(2026, 8, 22),
+            region="Bratislavský kraj",
             location="Bratislava – testovacia hala",
             description=(
                 "Hotová ukážka dvojfázového turnaja: 3 skupiny po 4 "
@@ -290,6 +291,7 @@ def seed_noro_64_player_bracket(
             participation_type="INDIVIDUAL",
             format_id=tournament_format.id,
             event_date=date(2026, 8, 23),
+            region="Bratislavský kraj",
             location="Bratislava - test hall",
             description="Demo elimination bracket with 64 players.",
             fee=0,
@@ -339,6 +341,7 @@ def seed_noro_football_bracket(db, noro, users, organization, tournament_format)
             participation_type="TEAM",
             format_id=tournament_format.id,
             event_date=date(2026, 8, 30),
+            region="Bratislavský kraj",
             location="Bratislava – ihrisko Noro Cup",
             description="Ukážkový futbalový turnaj pre 4 tímy s pripraveným pavúkom.",
             fee=0,
@@ -425,7 +428,7 @@ def main() -> None:
         for name, sport, participation_type, event_date, location, description, fee in event_specs:
             event = db.scalar(select(OrganizationEvent).where(OrganizationEvent.organization_id == organization.id, OrganizationEvent.name == name))
             if not event:
-                event = OrganizationEvent(organization_id=organization.id, created_by_user_id=sara.id, name=name, sport=sport, participation_type=participation_type, event_date=event_date, location=location, description=description, fee=fee)
+                event = OrganizationEvent(organization_id=organization.id, created_by_user_id=sara.id, name=name, sport=sport, participation_type=participation_type, event_date=event_date, region="Bratislavský kraj", location=location, description=description, fee=fee)
                 db.add(event)
                 db.flush()
             events[name] = event

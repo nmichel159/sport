@@ -88,6 +88,22 @@ a materially larger payload.
 - Release builds must not permit cleartext HTTP. `allowBackup` remains disabled
   and unneeded storage, overlay, and vibration permissions remain blocked.
 
+## Local event-form assistant
+
+- `src/features/localAi/` owns model download state, local inference, speech UI,
+  the shared screen/capability manifest, and constrained action-plan contracts.
+- The selected model is Google's Gemma 4 E2B Instruct Q4_0 GGUF. Download the
+  pinned model revision into the app document directory; do not bundle its
+  multi-gigabyte weights in the application package.
+- Speech recognition produces text only. Gemma receives that text plus the
+  current screen manifest, form state, option vocabulary, constraints, and
+  recent session turns. It may return only a schema-constrained action plan;
+  the app validates and grounds every action against the live UI before
+  applying it. The assistant must never submit or create the event.
+- `llama.rn` and `expo-speech-recognition` are native modules. Any related
+  config or dependency change requires a fresh development build; Expo Go and
+  a Metro-only reload are not sufficient.
+
 ## Development and verification
 
 Install and run with `npm install` and `npm run start`. For Android emulator,

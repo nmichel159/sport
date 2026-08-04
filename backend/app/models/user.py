@@ -1,6 +1,7 @@
 from datetime import date, datetime, time
 
 import uuid
+import secrets
 
 from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, Time, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
@@ -101,6 +102,12 @@ class OrganizationEvent(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+    invite_token: Mapped[str] = mapped_column(
+        String(64),
+        unique=True,
+        index=True,
+        default=lambda: secrets.token_hex(32),
+    )
     organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
     created_by_user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"))
     name: Mapped[str] = mapped_column(String(180))

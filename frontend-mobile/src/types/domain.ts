@@ -40,6 +40,7 @@ export type TournamentFormat = {
 
 export type ApiEvent = {
   id: string
+  invite_token: string
   name: string
   event_type: EventType
   sport: string
